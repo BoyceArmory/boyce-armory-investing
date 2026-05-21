@@ -1,0 +1,32 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+
+    // -------- profile avatars --------
+    // Path: avatars/{uid}.jpg
+    // Only the owner can write; any signed-in user can read (so other members
+    // see your photo in chat).
+    match /avatars/{file} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn()
+        && file.matches(uid() + '\\..+');
+    }
+
+    // -------- chat uploads --------
+    // Path: uploads/{uid}/{roomId}/{file}
+    // Only the owner can write under their own uid prefix. Any signed-in user
+    // can read.
+    match /uploads/{userId}/{roomId}/{file} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && userId == uid();
+    }
+
+    // Deny everything else.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

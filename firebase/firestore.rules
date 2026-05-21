@@ -1,0 +1,139 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------- helpers --------------
+    function isSignedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(uid()));
+    }
+    function isAdmin() {
+      return isSignedIn() && userDoc().data.role == 'admin';
+    }
+
+    // -------------- users --------------
+    // A user can read their own doc; admins can read everyone.
+    // Users can create/update their own doc but only set role to 'customer'.
+    // Admins can write anything.
+    match /users/{userId} {
+      allow read: if isSignedIn() && (uid() == userId || isAdmin());
+      allow create: if isSignedIn()
+        && uid() == userId
+        && request.resource.data.role == 'customer';
+      allow update: if isSignedIn() && (
+        isAdmin()
+        || (
+          uid() == userId
+          && request.resource.data.role == resource.data.role
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // -------------- scanner -------------
+    // Public alerts (customer-visible): any signed-in user can read,
+    // only admins (or backend with serviceAccount) can write.
+    match /scanner_alerts/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Raw scanner output (admin-only).
+    match /scanner_results/{id} { allow read, write: if isAdmin(); }
+    match /scanner_runs/{id}    { allow read, write: if isAdmin(); }
+
+    // -------------- trade alerts --------
+    // Customers see only docs marked visibility = 'public'.
+    match /trade_alerts/{id} {
+      allow read: if isSignedIn() && (
+        isAdmin() || resource.data.visibility == 'public'
+      );
+      allow write: if isAdmin();
+    }
+
+    // -------------- trades --------------
+    match /active_trades/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /closed_trades/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // -------------- performance / recaps --------
+    match /performance_stats/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /daily_recaps/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // -------------- chat --------------
+    // Room metadata: anyone signed in can read, admins seed/manage.
+    // (The backend bumps `lastMessage` via the service account, so admin-write
+    //  here is fine - service account bypasses rules.)
+    match /chat_rooms/{roomId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+
+      // Messages: anyone signed in can read; only the sender can create their
+      // own message; only sender or admin can edit / delete.
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+
+        allow create: if isSignedIn()
+          && request.resource.data.senderId == uid()
+          && request.resource.data.deleted == false
+          && request.resource.data.roomId == roomId;
+
+        allow update: if isSignedIn() && (
+          isAdmin()
+          || resource.data.senderId == uid()
+        );
+
+        allow delete: if isAdmin();
+      }
+    }
+
+    // -------------- notifications -----
+    // System-generated notification feed. Read for any signed-in user (the
+    // app filters to "yours"); writes only via service account / admin.
+    match /notifications/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // -------------- device tokens -----
+    // A user can register / update / remove their own FCM token. Admins can
+    // read for moderation. Token is the doc id so we tie it to a uid via
+    // the `uid` field.
+    match /device_tokens/{token} {
+      allow read: if isSignedIn() && (
+        isAdmin()
+        || (resource == null)
+        || resource.data.uid == uid()
+      );
+      allow create: if isSignedIn() && request.resource.data.uid == uid();
+      allow update: if isSignedIn() && (
+        isAdmin() || resource.data.uid == uid()
+      );
+      allow delete: if isSignedIn() && (
+        isAdmin() || resource.data.uid == uid()
+      );
+    }
+
+    // -------------- queues / logs (admin-only) ----------
+    match /push_queue/{id}    { allow read, write: if isAdmin(); }
+    match /discord_queue/{id} { allow read, write: if isAdmin(); }
+    match /admin_logs/{id}    { allow read, write: if isAdmin(); }
+
+    // Deny-by-default for anything else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

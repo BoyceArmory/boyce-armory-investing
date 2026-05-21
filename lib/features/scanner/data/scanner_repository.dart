@@ -16,11 +16,16 @@ class ScannerRepository {
   final FirestoreService _fs;
 
   /// Live stream of recent public scanner alerts. Optionally filter by mode.
+  ///
+  /// The visibility filter is defence-in-depth: the backend only writes
+  /// public docs to `scanner_alerts`, but adding the filter here means the
+  /// UI ignores anything that accidentally slips through.
   Stream<List<ScannerAlert>> streamPublicAlerts({
     int limit = 50,
     ScannerMode? mode,
   }) {
-    Query<Map<String, dynamic>> q = _fs.scannerAlerts;
+    Query<Map<String, dynamic>> q = _fs.scannerAlerts
+        .where('visibility', isEqualTo: AlertVisibility.public.wire);
     if (mode != null) {
       q = q.where('mode', isEqualTo: mode.wire);
     }
