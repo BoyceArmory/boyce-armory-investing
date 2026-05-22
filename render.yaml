@@ -10,15 +10,33 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+
+      - key: PORT
+        value: 8080
+
+      - key: ADMIN_API_KEY
+        sync: false
+
       - key: FINNHUB_API_KEY
         sync: false
-      - key: FIREBASE_PROJECT_ID
+
+      - key: MASSIVE_API_KEY
         sync: false
-      - key: FIREBASE_CLIENT_EMAIL
-        sync: false
-      - key: FIREBASE_PRIVATE_KEY
-        sync: false
+
       - key: DISCORD_WEBHOOK_URL
         sync: false
-      - key: ADMIN_API_KEY
+
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+
+      - key: WEBULL_APP_KEY
+        sync: false
+
+      - key: WEBULL_APP_SECRET
         sync: false
