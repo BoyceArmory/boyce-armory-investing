@@ -1,58 +1,168 @@
-/// Short, plain-English explanation of why each setup kind tends to work.
+/// Plain-English explanation of why each setup kind tends to work.
 /// Surfaced in the expanded scanner card so users learn the system as they
 /// scroll the feed.
+///
+/// Every entry deliberately includes:
+///   1. What the pattern actually is (mechanical description).
+///   2. Why it works (the underlying market behavior).
+///   3. The entry/risk logic (what to watch for to know if it's invalidated).
 class SetupEducation {
   SetupEducation._();
 
   static const Map<String, String> _byKind = <String, String>{
+    // -------------------- Trend continuation --------------------
     'bull_flag':
         'A bull flag prints when a stock makes a sharp move higher, then '
             'consolidates tight before continuing. The pause shakes out weak '
-            'hands; the break of the flag high is where momentum picks back up.',
+            'hands and gives institutions a clean re-entry zone; the break of '
+            'the flag high is where momentum picks back up. Stop sits below '
+            'the flag low — if that breaks, the pattern is invalidated and '
+            'the trade is wrong.',
     'bear_flag':
-        'A bear flag is the inverse of a bull flag - a sharp drop followed by '
-            'a tight, upward-drifting pause. The break of the flag low is the '
-            'continuation trigger.',
+        'A bear flag is the inverse of a bull flag — a sharp drop followed by '
+            'a tight, upward-drifting pause. The drift is short sellers being '
+            'temporarily squeezed before the next leg down. The break of the '
+            'flag low is the continuation trigger; stop above the flag high.',
     'breakout':
         'Breakouts happen when price clears a known resistance level with '
-            'volume. The clean break tells you new buyers are taking control '
-            'above a level where sellers used to win.',
+            'real volume (≥1.5× average). The clean break tells you new buyers '
+            'are taking control above a level where sellers used to win. The '
+            'best breakouts come off a tight base (low volatility before the '
+            'move) and run further when SPY is also trending up.',
     'breakdown':
-        'Breakdowns are the mirror image of breakouts - price losing a '
+        'Breakdowns are the mirror image of breakouts — price losing a '
             'support level on volume, signalling sellers have taken over the '
-            'zone where buyers used to defend.',
-    'oversold_bounce':
-        'When RSI drops below 30 the stock is statistically stretched to the '
-            'downside. A reclaim of a key moving average is the early signal '
-            'that buyers are stepping back in.',
-    'overbought_fade':
-        'When RSI runs above 70 the stock is statistically stretched up. '
-            'Losing a key moving average from above is the early tell that '
-            'profit-taking is winning.',
+            'zone where buyers used to defend. The cleanest ones come after '
+            'a long base just above support, then crack with volume.',
     'high_volume_move':
-        'A move on 2x+ average volume is institutional participation, not '
+        'A move on ≥2× average volume is institutional participation, not '
             'random noise. Direction matters more than size when the volume '
-            'shows up.',
+            'shows up. Watch for the next bar to confirm — the first big-vol '
+            'bar can be a false move, the second bar in the same direction '
+            'is the real signal.',
+
+    // -------------------- Mean reversion --------------------
+    'oversold_bounce':
+        'When RSI(14) drops below 30 the stock is statistically stretched to '
+            'the downside. A reclaim of a key moving average (20EMA) is the '
+            'early signal that buyers are stepping back in. Don\'t catch the '
+            'falling knife — wait for the reclaim, then enter with a stop '
+            'below the recent swing low.',
+    'overbought_fade':
+        'When RSI(14) runs above 70 the stock is statistically stretched up. '
+            'Losing a key moving average from above is the early tell that '
+            'profit-taking is winning. Best fades happen at confluence — '
+            'overbought RSI + at a prior resistance level + bearish candle.',
+    'vwap_reclaim':
+        'Intraday VWAP is where institutional algos benchmark their fills. '
+            'Price that dipped below VWAP and reclaims it on volume is '
+            'showing that big money sees current price as cheap. The '
+            'reclaim is the entry; VWAP itself is the stop.',
+    'vwap_rejection':
+        'Mirror of reclaim — price rallying into VWAP from below, then '
+            'rejecting it on volume. Institutions are selling into the bounce '
+            'because the day is structurally weak. Short the rejection; VWAP '
+            'is the invalidation level above.',
+
+    // -------------------- Opening-range / day setups --------------------
+    'orb_breakout':
+        'The Opening Range Breakout: the first 30 minutes (09:30–10:00 ET) '
+            'sets a price range. A break above that high — with volume that '
+            'beats the prior 20-minute average — is the cleanest day-trading '
+            'long. Best on days when SPY is also pushing higher.',
+    'orb_breakdown':
+        'Same logic as ORB breakout, on the short side. A clean break below '
+            'the opening-range low on volume tells you sellers won the first '
+            'thirty minutes and the day will trend down. Tight stops above '
+            'the ORL.',
+
+    // -------------------- Reversal family (Sprint 2) --------------------
+    'oversold_reversal_long':
+        'Three or more days of RSI < 30 plus a higher low today plus a '
+            'decisive bullish candle (≥60% body) on above-average volume — '
+            'AND price closed above the prior three-day high. This is the '
+            '"catch the bottom on confirmation" play: you don\'t pick the low '
+            'tick, you wait for the first higher high after the capitulation. '
+            'Stop just below today\'s low.',
+    'overbought_reversal_short':
+        'Three or more days of RSI > 70 plus a lower high today plus a '
+            'decisive bearish candle on volume — and today closed below the '
+            'prior three-day low. The "second mouse gets the cheese" short — '
+            'wait for the first lower low after the blow-off top.',
+    'failed_breakdown_long':
+        'Yesterday broke below 20-bar support (the bear trap) but today '
+            'closed back ABOVE yesterday\'s high — a bullish reclaim on '
+            'volume. These are the highest win-rate reversal setups because '
+            'they catch trapped shorts being squeezed. Stop below yesterday\'s '
+            'low; momentum often runs hard once the shorts cover.',
+    'failed_breakout_short':
+        'Mirror — yesterday spiked above resistance (the bull trap), today '
+            'closed below yesterday\'s low. Trapped longs unwind into the '
+            'short. Stop above yesterday\'s high.',
+    'bullish_engulfing_long':
+        'Today\'s bullish body completely engulfs yesterday\'s bearish body '
+            '— and it\'s ≥10% larger. Happens within 3% of the 20-bar low. '
+            'The pattern signals a sentiment flip at support: yesterday\'s '
+            'sellers had no follow-through, today\'s buyers overwhelmed them. '
+            'Volume confirmation makes it tradeable.',
+    'bearish_engulfing_short':
+        'Mirror near the 20-bar high. Sellers overwhelmed the prior day\'s '
+            'buyers in a single decisive candle. Often marks a swing top.',
+
+    // -------------------- Day-scanner additions (Sprint 5) --------------------
+    'gap_continuation_long':
+        'A gap-up of 1.5%+ that\'s holding its open price 30+ minutes into '
+            'the session, on above-average volume. The thesis: gaps that '
+            'don\'t fill in the first half-hour usually run further into '
+            'the morning. Stop just below the open — if that breaks the '
+            'gap is filling and the trade is wrong.',
+    'gap_fade_short':
+        'Mirror — a gap-down of 1.5%+ that\'s not recovering. Volume '
+            'confirms sellers are still in control. Short the failure of '
+            'the open; stop just above it.',
+    'stop_hunt_reversal_long':
+        'A liquidity sweep: price wicked below the 20-bar low (running '
+            'stop-loss orders), then closed back above on volume. Whoever '
+            'placed stops just under support got run, and the algos that '
+            'caused it now have inventory to push price higher. Best '
+            'reversal setup in the day scanner; stop is just below the '
+            'wick low.',
+    'stop_hunt_reversal_short':
+        'Mirror at resistance — a wick that pierced the 20-bar high and '
+            'rejected. Trapped longs and stop-runs above the prior high '
+            'fuel the move down. Stop above the wick high.',
+    'hammer_at_support':
+        'A single-bar capitulation candle near the 20-bar low — small body '
+            'in the top third of the range, long lower wick, little to no '
+            'upper wick. Sellers tried, failed, buyers stepped in '
+            'aggressively into the close. The hammer is the signal, the '
+            'NEXT bar\'s close above the hammer high is the trigger.',
+    'shooting_star_at_resistance':
+        'Mirror at the 20-bar high. Small body, long upper wick. Buyers '
+            'tried, sellers overwhelmed them. Confirmation on the next bar '
+            'closing below the star low.',
+
+    // -------------------- Generic fallbacks --------------------
     'support_bounce':
-        'Buyers tend to defend price levels they have defended before. Tagging '
-            'support with a rejection wick and volume is the cleanest entry '
-            'pattern in trend trading.',
+        'Buyers tend to defend price levels they have defended before. '
+            'Tagging support with a rejection wick and volume is the cleanest '
+            'entry pattern in trend trading. Stop below the wick low.',
     'resistance_rejection':
         'Sellers defend overhead levels the same way buyers defend support. '
             'A failed test of resistance with a long upper wick is a high '
             'probability short / put setup.',
     'pullback_entry':
-        'Inside a healthy trend, pullbacks to a moving average offer the best '
-            'risk-to-reward. You enter with the trend, not against it, and '
-            'place stops just below the swing low.',
+        'Inside a healthy trend, pullbacks to a moving average offer the '
+            'best risk-to-reward. You enter with the trend, not against it, '
+            'and place stops just below the swing low.',
     'range_break':
         'The longer a stock stays in a tight range, the more energy it builds. '
             'A clean break of the range with volume usually runs at least the '
             'width of the range itself.',
     'reversal':
-        'Reversals require a clear prior trend. A higher low after a downtrend '
-            '(or lower high after an uptrend) plus volume divergence is the '
-            'tell that structure is flipping.',
+        'Reversals require a clear prior trend. A higher low after a '
+            'downtrend (or lower high after an uptrend) plus volume divergence '
+            'is the tell that structure is flipping.',
     'manual':
         'This setup was hand-picked by the desk because the combination of '
             'price action, volume, and market context lines up with how we '
@@ -65,7 +175,7 @@ class SetupEducation {
     final String key = kind.trim().toLowerCase();
     return _byKind[key] ??
         'This setup combines price action, volume, and trend structure into '
-            'a high-probability entry. Read the full reason for what triggered '
-            'this specific alert.';
+            'a high-probability entry. Read the trigger reason above for what '
+            'specifically fired the alert.';
   }
 }

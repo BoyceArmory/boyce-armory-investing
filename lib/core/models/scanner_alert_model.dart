@@ -19,6 +19,18 @@ class ScannerAlert extends Equatable {
     this.entry,
     this.target,
     this.stop,
+    this.target1,
+    this.target2,
+    this.target3,
+    this.riskReward,
+    this.session,
+    this.relVolume,
+    this.histWinRate,
+    this.histSampleSize,
+    this.whyThisStock,
+    this.family,
+    this.dataSource,
+    this.preConfirm = false,
     this.asOf,
     this.suggestedContract,
     this.currentPrice,
@@ -40,6 +52,47 @@ class ScannerAlert extends Equatable {
   final double? entry;
   final double? target;
   final double? stop;
+
+  /// Scaled-exit ladder. T1=1R, T2=2R, T3=3R (R = entry-to-stop distance).
+  /// Scale 1/3 of position at each. `target` (above) equals `target2` so the
+  /// older UI keeps working without changes.
+  final double? target1;
+  final double? target2;
+  final double? target3;
+  /// Reward-to-risk ratio measured to T2 (typically 2.0).
+  final double? riskReward;
+
+  /// Market session at scan time: premarket / open / morning / lunch /
+  /// afternoon / close / closed. Useful for time-of-day labelling.
+  final String? session;
+
+  /// Relative volume — current bar vs 20-bar average. >1 = above average.
+  final double? relVolume;
+
+  /// Historical win rate (0–100) for this (mode, kind) over the rolling
+  /// closed-trades window. Only set when we have ≥5 closed trades.
+  final double? histWinRate;
+
+  /// Sample size behind `histWinRate`. UI should hide the badge if < 5.
+  final int? histSampleSize;
+
+  /// Per-alert narrative explaining why THIS specific ticker is firing right
+  /// now — generated server-side from the snapshot. The Flutter card uses
+  /// this for the "Why this stock" section instead of the terse `reason`.
+  final String? whyThisStock;
+
+  /// Strategy family: breakout / breakdown / mean_reversion / momentum /
+  /// reversal. Computed server-side from `kind`. Lets future UI group/filter
+  /// setups by family.
+  final String? family;
+
+  /// Which provider served the snapshot. Audit only.
+  final String? dataSource;
+
+  /// True when this is a "forming" alert — score is below the public floor
+  /// but within striking distance. Always admin_only.
+  final bool preConfirm;
+
   final DateTime? asOf;
   final OptionContract? suggestedContract;
 
@@ -88,6 +141,18 @@ class ScannerAlert extends Equatable {
       entry: (m['entry'] as num?)?.toDouble(),
       target: (m['target'] as num?)?.toDouble(),
       stop: (m['stop'] as num?)?.toDouble(),
+      target1: (m['target1'] as num?)?.toDouble(),
+      target2: (m['target2'] as num?)?.toDouble(),
+      target3: (m['target3'] as num?)?.toDouble(),
+      riskReward: (m['riskReward'] as num?)?.toDouble(),
+      session: m['session'] as String?,
+      relVolume: (m['relVolume'] as num?)?.toDouble(),
+      histWinRate: (m['histWinRate'] as num?)?.toDouble(),
+      histSampleSize: (m['histSampleSize'] as num?)?.toInt(),
+      whyThisStock: m['whyThisStock'] as String?,
+      family: m['family'] as String?,
+      dataSource: m['dataSource'] as String?,
+      preConfirm: (m['preConfirm'] as bool?) ?? false,
       asOf: _parseDate(m['asOf']),
       suggestedContract: contract is Map<String, dynamic>
           ? OptionContract.fromMap(contract)

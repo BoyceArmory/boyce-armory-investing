@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for any network I/O (REST calls to backend, Firestore, FCM). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Required on Android 13+ (API 33+) for FCM notifications. Without this
+         permission, the system silently drops notifications until the user
+         manually enables them in settings. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <application
-        android:label="boyce_armory"
+        android:label="Boyce Armory"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

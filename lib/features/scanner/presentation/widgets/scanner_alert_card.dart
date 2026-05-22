@@ -127,6 +127,15 @@ class _RightInfoColumn extends StatelessWidget {
             GradeBadge(grade: alert.grade),
           ],
         ),
+        // Optional: historical win-rate chip when we have enough sample.
+        if (alert.histWinRate != null &&
+            (alert.histSampleSize ?? 0) >= 5) ...<Widget>[
+          const SizedBox(height: 6),
+          _WinRateChip(
+            winRate: alert.histWinRate!,
+            sampleSize: alert.histSampleSize!,
+          ),
+        ],
         const SizedBox(height: 10),
 
         // Ticker + logo.
@@ -245,7 +254,11 @@ class _ExpandedSection extends StatelessWidget {
           _SectionTitle('WHY THIS STOCK', color: accent),
           const SizedBox(height: 6),
           _ShadowedText(
-            alert.reason,
+            // Prefer the server-generated per-alert narrative when present,
+            // fall back to the detector's terse reason for legacy alerts.
+            (alert.whyThisStock?.isNotEmpty ?? false)
+                ? alert.whyThisStock!
+                : alert.reason,
             textAlign: TextAlign.right,
             style: const TextStyle(
               color: Colors.white,
@@ -467,6 +480,49 @@ class _ShadowedText extends StatelessWidget {
             color: Color(0xAA000000),
             offset: Offset(0, 1),
             blurRadius: 4,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Historical win-rate badge. Surfaces the rolling closed-trades win rate
+/// the backend attaches per (mode, kind) — gives the buyer immediate
+/// "this setup actually works" credibility.
+class _WinRateChip extends StatelessWidget {
+  const _WinRateChip({required this.winRate, required this.sampleSize});
+  final double winRate;
+  final int sampleSize;
+
+  Color get _color {
+    if (winRate >= 60) return AppColors.bullish;
+    if (winRate >= 50) return AppColors.warning;
+    return AppColors.bearish;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: _color.withValues(alpha: 0.14),
+        border: Border.all(color: _color.withValues(alpha: 0.45)),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(Icons.trending_up, size: 11, color: _color),
+          const SizedBox(width: 4),
+          Text(
+            '${winRate.toStringAsFixed(0)}% · ${sampleSize}',
+            style: TextStyle(
+              color: _color,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
           ),
         ],
       ),

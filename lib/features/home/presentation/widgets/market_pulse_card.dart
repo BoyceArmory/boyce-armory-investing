@@ -1,130 +1,170 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/models/market_context_model.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/formatters.dart';
-import '../../../../shared/widgets/premium_card.dart';
-import '../../../market/presentation/providers/market_providers.dart';
+import '../../data/home_overview_model.dart';
+import '../providers/home_providers.dart';
 
-/// Hero "market pulse" card on the home screen. Pulls SPY/QQQ/DIA from
-/// /api/market/context.
+/// SPY / QQQ / DIA card. Auto-refreshes every 30s via the home overview
+/// stream. Tap to force-refresh.
 class MarketPulseCard extends ConsumerWidget {
-  const MarketPulseCard({super.key, this.displayName});
+  const MarketPulseCard({
+    super.key,
+    this.displayName,
+  });
+
   final String? displayName;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final TextTheme tt = Theme.of(context).textTheme;
-    final String greeting = _greeting();
-    final AsyncValue<MarketContext> async = ref.watch(marketContextProvider);
+  static const String _backgroundPath =
+      'assets/backgrounds/blank_backgrounds.png';
 
-    return PremiumCard(
-      accent: PremiumCardAccent.gold,
-      glow: true,
-      padding: const EdgeInsets.all(22),
-      onTap: () => ref.invalidate(marketContextProvider),
-      child: Stack(
-        children: <Widget>[
-          Positioned(
-            right: -40,
-            top: -60,
-            child: Container(
-              width: 180,
-              height: 180,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: AppGradients.gold,
-              ),
-              foregroundDecoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.obsidian.withValues(alpha: 0.85),
-              ),
+  @override
+  Widget build(
+    BuildContext context,
+    WidgetRef ref,
+  ) {
+    final AsyncValue<HomeOverview> async =
+        ref.watch(homeOverviewStreamProvider);
+
+    return GestureDetector(
+      onTap: () => ref.invalidate(homeOverviewStreamProvider),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: SizedBox(
+          width: double.infinity,
+          height: 230,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: AppColors.gold.withOpacity(0.22),
+                  blurRadius: 24,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Stack(
+              children: <Widget>[
+                Positioned.fill(
+                  child: Image.asset(
+                    _backgroundPath,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withOpacity(0.12),
+                  ),
+                ),
+                Align(
+                  alignment: const Alignment(0, -0.45),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+  horizontal: 18,
+),
+                    child: async.when(
+                      loading: () => const _PulseStatRow.empty(),
+                      error: (
+                        Object error,
+                        StackTrace stackTrace,
+                      ) =>
+                          const _PulseStatRow.empty(),
+                      data: (HomeOverview ov) =>
+                          _PulseStatRow.fromOverview(ov),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                greeting.toUpperCase(),
-                style: tt.labelSmall?.copyWith(color: AppColors.gold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                displayName != null && displayName!.isNotEmpty
-                    ? 'Welcome back, ${displayName!.split(' ').first}.'
-                    : 'Welcome back.',
-                style: tt.headlineMedium,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                "Here's what the desk is watching today.",
-                style: tt.bodyMedium,
-              ),
-              const SizedBox(height: 18),
-              async.when(
-                loading: () => const Row(
-                  children: <Widget>[
-                    _PulseStat(label: 'SPY', value: '—'),
-                    SizedBox(width: 14),
-                    _PulseStat(label: 'QQQ', value: '—'),
-                    SizedBox(width: 14),
-                    _PulseStat(label: 'DIA', value: '—'),
-                  ],
-                ),
-                error: (Object e, _) => const Row(
-                  children: <Widget>[
-                    _PulseStat(label: 'SPY', value: '—'),
-                    SizedBox(width: 14),
-                    _PulseStat(label: 'QQQ', value: '—'),
-                    SizedBox(width: 14),
-                    _PulseStat(label: 'DIA', value: '—'),
-                  ],
-                ),
-                data: (MarketContext ctx) => Row(
-                  children: <Widget>[
-                    _PulseStat(
-                      label: 'SPY',
-                      value: ctx.spy != null
-                          ? Formatters.priceCompact(ctx.spy!.price)
-                          : '—',
-                      changePct: ctx.spy?.changePct,
-                    ),
-                    const SizedBox(width: 14),
-                    _PulseStat(
-                      label: 'QQQ',
-                      value: ctx.qqq != null
-                          ? Formatters.priceCompact(ctx.qqq!.price)
-                          : '—',
-                      changePct: ctx.qqq?.changePct,
-                    ),
-                    const SizedBox(width: 14),
-                    _PulseStat(
-                      label: 'DIA',
-                      value: ctx.dia != null
-                          ? Formatters.priceCompact(ctx.dia!.price)
-                          : '—',
-                      changePct: ctx.dia?.changePct,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
+}
 
-  String _greeting() {
-    final int h = DateTime.now().hour;
-    if (h < 5) return 'Late night';
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
+class _PulseStatRow extends StatelessWidget {
+  const _PulseStatRow({
+    required this.stats,
+  });
+
+  const _PulseStatRow.empty()
+      : stats = const <_PulseStatData>[
+          _PulseStatData(
+            label: 'SPY',
+            value: '—',
+          ),
+          _PulseStatData(
+            label: 'QQQ',
+            value: '—',
+          ),
+          _PulseStatData(
+            label: 'DIA',
+            value: '—',
+          ),
+        ];
+
+  /// Pick SPY, QQQ, DIA out of the overview's indices list.
+  factory _PulseStatRow.fromOverview(HomeOverview ov) {
+    MiniQuote? pick(String sym) {
+      for (final q in ov.indices) {
+        if (q.symbol == sym) return q;
+      }
+      return null;
+    }
+
+    _PulseStatData stat(String label) {
+      final q = pick(label);
+      return _PulseStatData(
+        label: label,
+        value: q != null ? Formatters.priceCompact(q.price) : '—',
+        changePct: q?.changePct,
+      );
+    }
+
+    return _PulseStatRow(
+      stats: <_PulseStatData>[
+        stat('SPY'),
+        stat('QQQ'),
+        stat('DIA'),
+      ],
+    );
   }
+
+  final List<_PulseStatData> stats;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: stats
+          .map(
+            (_PulseStatData stat) => Expanded(
+              child: _PulseStat(
+                label: stat.label,
+                value: stat.value,
+                changePct: stat.changePct,
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _PulseStatData {
+  const _PulseStatData({
+    required this.label,
+    required this.value,
+    this.changePct,
+  });
+
+  final String label;
+  final String value;
+  final double? changePct;
 }
 
 class _PulseStat extends StatelessWidget {
@@ -139,35 +179,59 @@ class _PulseStat extends StatelessWidget {
   final double? changePct;
 
   Color get _changeColor {
-    if (changePct == null) return AppColors.textTertiary;
-    if (changePct! >= 0) return AppColors.bullish;
+    if (changePct == null) {
+      return AppColors.textTertiary;
+    }
+
+    if (changePct! >= 0) {
+      return AppColors.bullish;
+    }
+
     return AppColors.bearish;
   }
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Text(
           label,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(color: AppColors.textTertiary),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppColors.gold,
+                fontWeight: FontWeight.w900,
+                fontSize: 15,
+                letterSpacing: 1.2,
+                shadows: <Shadow>[
+                  Shadow(
+                    color: Colors.black.withOpacity(0.95),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 5),
         Text(
           value,
-          style: AppTypography.mono(size: 15, weight: FontWeight.w700),
+          textAlign: TextAlign.center,
+          style: AppTypography.mono(
+            size: 20,
+            weight: FontWeight.w900,
+            color: Colors.white,
+          ),
         ),
         if (changePct != null) ...<Widget>[
-          const SizedBox(height: 2),
+          const SizedBox(height: 3),
           Text(
-            Formatters.signedPercent(changePct, alreadyPercent: true),
+            Formatters.signedPercent(
+              changePct,
+              alreadyPercent: true,
+            ),
+            textAlign: TextAlign.center,
             style: AppTypography.mono(
-              size: 11,
-              weight: FontWeight.w700,
+              size: 14,
+              weight: FontWeight.w900,
               color: _changeColor,
             ),
           ),

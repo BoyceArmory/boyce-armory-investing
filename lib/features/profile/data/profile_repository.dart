@@ -5,18 +5,25 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
-/// Profile-related writes: photo upload + display name updates.
+import '../../../core/services/api_client.dart';
+
+/// Profile-related writes for the signed-in user. Routes through the backend
+/// `/api/users/me` for fields that need server-side validation; direct
+/// Firestore for fields the rules already gate (photoUrl, displayName).
 class ProfileRepository {
   ProfileRepository({
+    required ApiClient apiClient,
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     FirebaseStorage? storage,
     ImagePicker? imagePicker,
-  })  : _auth = auth ?? FirebaseAuth.instance,
+  })  : _api = apiClient,
+        _auth = auth ?? FirebaseAuth.instance,
         _db = firestore ?? FirebaseFirestore.instance,
         _storage = storage ?? FirebaseStorage.instance,
         _picker = imagePicker ?? ImagePicker();
 
+  final ApiClient _api;
   final FirebaseAuth _auth;
   final FirebaseFirestore _db;
   final FirebaseStorage _storage;
@@ -69,12 +76,21 @@ class ProfileRepository {
     final String trimmed = name.trim();
     if (trimmed.isEmpty) return;
     await u.updateDisplayName(trimmed);
-    await _db.collection('users').doc(u.uid).set(
-      <String, dynamic>{
-        'displayName': trimmed,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    // Backend writes through the allowlist so disabled/tier/role can never be
+    // touched by accident.
+    await _api.patchJson('/api/users/me', body: {'displayName': trimmed});
+  }
+
+  Future<void> updateNickname(String nickname) async {
+    final String trimmed = nickname.trim();
+    if (trimmed.isEmpty) return;
+    await _api.patchJson('/api/users/me', body: {'nickname': trimmed});
+  }
+
+  /// Calls the backend cascade: deactivate device tokens, anonymize users doc,
+  /// audit log. After this returns, the local Firebase Auth user should be
+  /// deleted (backend does that too); the client should pop back to sign-in.
+  Future<void> deleteAccountCascade() async {
+    await _api.deleteJson('/api/users/me');
   }
 }

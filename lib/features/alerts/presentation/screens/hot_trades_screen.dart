@@ -8,7 +8,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
-import '../../../../shared/widgets/section_header.dart';
 import '../../../scanner/presentation/widgets/scanner_card_skeleton.dart';
 import '../providers/alerts_providers.dart';
 import '../widgets/hot_trade_card.dart';
@@ -28,12 +27,14 @@ class HotTradesScreen extends ConsumerWidget {
         onRefresh: () async => ref.invalidate(hotAlertsProvider),
         child: CustomScrollView(
           slivers: <Widget>[
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(20, 12, 20, 8),
+            // Branded image header — replaces the old SectionHeader.
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               sliver: SliverToBoxAdapter(
-                child: SectionHeader(
-                  eyebrow: 'Curated',
-                  title: 'Hot Trades',
+                child: Image.asset(
+                  'assets/buttons/hot_trades_button.png',
+                  fit: BoxFit.contain,
+                  width: double.infinity,
                 ),
               ),
             ),

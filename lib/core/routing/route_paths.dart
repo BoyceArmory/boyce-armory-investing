@@ -49,4 +49,7 @@ class RoutePaths {
 
   // Admin
   static const String adminDashboard = '/admin';
+
+  // Support
+  static const String supportTicket = '/support/ticket';
 }

@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/result.dart';
 
 /// Auth facade. Wraps FirebaseAuth so feature code never imports
-/// firebase_auth directly - easier to swap or mock later.
+/// firebase_auth directly — easier to swap or mock later.
 class AuthService {
   AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
 
@@ -72,6 +72,78 @@ class AuthService {
     return u.getIdToken(forceRefresh);
   }
 
+  // ----- Recent-sign-in-required operations -------------------------------
+  // Firebase requires a fresh credential for sensitive actions (delete,
+  // change email, change password). The Flutter UI prompts for the current
+  // password and we re-auth before the actual operation, so the user gets a
+  // useful error instead of "requires-recent-login".
+
+  Future<Result<void>> reauthenticate(String currentPassword) async {
+    try {
+      final User? u = _auth.currentUser;
+      if (u == null || u.email == null) {
+        return const Failure('Not signed in or no email on file.');
+      }
+      final cred = EmailAuthProvider.credential(
+        email: u.email!,
+        password: currentPassword,
+      );
+      await u.reauthenticateWithCredential(cred);
+      return const Success(null);
+    } on FirebaseAuthException catch (e) {
+      return Failure(_friendly(e), e);
+    } catch (e) {
+      return Failure('Re-authentication failed.', e);
+    }
+  }
+
+  Future<Result<void>> updatePassword(String newPassword) async {
+    try {
+      final User? u = _auth.currentUser;
+      if (u == null) return const Failure('Not signed in.');
+      if (newPassword.length < 8) {
+        return const Failure('Use at least 8 characters.');
+      }
+      await u.updatePassword(newPassword);
+      return const Success(null);
+    } on FirebaseAuthException catch (e) {
+      return Failure(_friendly(e), e);
+    } catch (e) {
+      return Failure('Unable to update password.', e);
+    }
+  }
+
+  /// Newer Firebase Auth requires verifyBeforeUpdateEmail — sends a
+  /// verification link to the new address. The user clicks it, and the email
+  /// only switches over once verified.
+  Future<Result<void>> updateEmail(String newEmail) async {
+    try {
+      final User? u = _auth.currentUser;
+      if (u == null) return const Failure('Not signed in.');
+      final trimmed = newEmail.trim();
+      if (!trimmed.contains('@')) return const Failure('Enter a valid email.');
+      await u.verifyBeforeUpdateEmail(trimmed);
+      return const Success(null);
+    } on FirebaseAuthException catch (e) {
+      return Failure(_friendly(e), e);
+    } catch (e) {
+      return Failure('Unable to update email.', e);
+    }
+  }
+
+  Future<Result<void>> deleteAccount() async {
+    try {
+      final User? u = _auth.currentUser;
+      if (u == null) return const Failure('Not signed in.');
+      await u.delete();
+      return const Success(null);
+    } on FirebaseAuthException catch (e) {
+      return Failure(_friendly(e), e);
+    } catch (e) {
+      return Failure('Unable to delete account.', e);
+    }
+  }
+
   String _friendly(FirebaseAuthException e) {
     switch (e.code) {
       case 'invalid-email':
@@ -86,6 +158,8 @@ class AuthService {
         return 'An account already exists for that email.';
       case 'weak-password':
         return 'Password is too weak. Try at least 8 characters.';
+      case 'requires-recent-login':
+        return 'Please sign in again to confirm this change.';
       case 'network-request-failed':
         return 'Network error. Check your connection and try again.';
       case 'too-many-requests':

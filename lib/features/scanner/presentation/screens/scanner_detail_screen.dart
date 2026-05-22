@@ -159,6 +159,54 @@ class _DetailBody extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 14),
+
+                // Scaled-exit ladder. Only renders when the backend supplied
+                // T1/T2/T3 (engine.buildResult after Sprint 1). Older alerts
+                // without these fields fall through quietly.
+                if (alert.target1 != null &&
+                    alert.target2 != null &&
+                    alert.target3 != null) ...<Widget>[
+                  Text(
+                    'Scaled exits',
+                    style: tt.labelLarge?.copyWith(
+                        color: AppColors.textTertiary, letterSpacing: 0.8),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _LadderRung(
+                          label: 'T1 · 1R',
+                          value: Formatters.price(alert.target1),
+                          color: AppColors.bullish.withValues(alpha: 0.85),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _LadderRung(
+                          label: 'T2 · 2R',
+                          value: Formatters.price(alert.target2),
+                          color: AppColors.bullish,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _LadderRung(
+                          label: 'T3 · 3R',
+                          value: Formatters.price(alert.target3),
+                          color: AppColors.gold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Scale 1/3 of position at each level. R = entry-to-stop distance.',
+                    style: tt.bodySmall?.copyWith(color: AppColors.textTertiary),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+
                 Row(
                   children: <Widget>[
                     Expanded(
@@ -179,8 +227,9 @@ class _DetailBody extends StatelessWidget {
                     Expanded(
                       child: _MiniStat(
                         label: 'R / R',
-                        value: alert.riskRewardRatio != null
-                            ? alert.riskRewardRatio!.toStringAsFixed(2)
+                        value: (alert.riskReward ?? alert.riskRewardRatio) != null
+                            ? (alert.riskReward ?? alert.riskRewardRatio)!
+                                .toStringAsFixed(2)
                             : '-',
                       ),
                     ),
@@ -282,6 +331,50 @@ class _MiniStat extends StatelessWidget {
               size: 18,
               weight: FontWeight.w700,
               color: color ?? AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A single rung of the scaled-exit ladder shown on the detail screen.
+/// Layout: small uppercase label on top, monospace price below.
+class _LadderRung extends StatelessWidget {
+  const _LadderRung({required this.label, required this.value, required this.color});
+  final String label;
+  final String value;
+  final Color color;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: AppTypography.mono(
+              size: 15,
+              weight: FontWeight.w700,
+              color: AppColors.textPrimary,
             ),
           ),
         ],

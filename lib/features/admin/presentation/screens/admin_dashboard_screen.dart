@@ -6,19 +6,63 @@ import '../../../../core/providers/auth_state_provider.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/empty_state.dart';
-import '../../../../shared/widgets/premium_card.dart';
-import '../../../../shared/widgets/section_header.dart';
+import '../widgets/alerts_tab.dart';
+import '../widgets/audit_tab.dart';
+import '../widgets/scanner_ops_tab.dart';
+import '../widgets/status_tab.dart';
+import '../widgets/trades_tab.dart';
+import '../widgets/users_tab.dart';
 
-class AdminDashboardScreen extends ConsumerWidget {
+/// Admin dashboard — full ops control center, all slices live.
+///
+///   Status   — what's running (auto-refresh 30s).
+///   Scanner  — manual trigger, run history, kill switches.
+///   Alerts   — scanner + trade alert management, promote to Hot, compose.
+///   Users    — list + role/tier/disabled controls.
+///   Trades   — active (with close) + closed.
+///   Audit    — admin_logs feed.
+class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
+
+class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs;
+
+  static const List<_TabSpec> _specs = <_TabSpec>[
+    _TabSpec('Status', Icons.monitor_heart_outlined),
+    _TabSpec('Scanner', Icons.radar),
+    _TabSpec('Alerts', Icons.campaign_outlined),
+    _TabSpec('Users', Icons.people_outline),
+    _TabSpec('Trades', Icons.show_chart),
+    _TabSpec('Audit', Icons.history),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = TabController(length: _specs.length, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final bool isAdmin = ref.watch(isAdminProvider);
     return Scaffold(
       backgroundColor: AppColors.obsidian,
       appBar: AppBar(
-        title: const Text('Admin'),
+        backgroundColor: AppColors.obsidian,
+        elevation: 0,
+        title: const Text('Admin',
+            style: TextStyle(letterSpacing: 0.8, fontWeight: FontWeight.w800)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go(RoutePaths.home),
@@ -29,41 +73,21 @@ class AdminDashboardScreen extends ConsumerWidget {
             ? const EmptyState(
                 icon: Icons.lock_outline,
                 title: 'Admin only',
-                message:
-                    'This dashboard is restricted to admin accounts.',
+                message: 'This dashboard is restricted to admin accounts.',
               )
-            : ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            : Column(
                 children: <Widget>[
-                  const SectionHeader(
-                    eyebrow: 'Internal',
-                    title: 'Admin Dashboard',
-                  ),
-                  const SizedBox(height: 16),
-                  PremiumCard(
-                    accent: PremiumCardAccent.gold,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          'Scanner ops, alert publishing, push controls, and analytics will live here.',
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                        const SizedBox(height: 14),
-                        const _AdminRow(
-                            label: 'Run scanner', icon: Icons.radar),
-                        const _AdminRow(
-                            label: 'Manage alerts',
-                            icon: Icons.campaign_outlined),
-                        const _AdminRow(
-                            label: 'Promote setup',
-                            icon: Icons.local_fire_department_outlined),
-                        const _AdminRow(
-                            label: 'User management',
-                            icon: Icons.people_outline),
-                        const _AdminRow(
-                            label: 'Push notifications',
-                            icon: Icons.notifications_active_outlined),
+                  _TabBarStrip(controller: _tabs, specs: _specs),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabs,
+                      children: const <Widget>[
+                        StatusTab(),
+                        ScannerOpsTab(),
+                        AlertsTab(),
+                        UsersTab(),
+                        TradesTab(),
+                        AuditTab(),
                       ],
                     ),
                   ),
@@ -74,34 +98,58 @@ class AdminDashboardScreen extends ConsumerWidget {
   }
 }
 
-class _AdminRow extends StatelessWidget {
-  const _AdminRow({required this.label, required this.icon});
+class _TabSpec {
+  const _TabSpec(this.label, this.icon);
   final String label;
   final IconData icon;
+}
+
+class _TabBarStrip extends StatelessWidget {
+  const _TabBarStrip({required this.controller, required this.specs});
+  final TabController controller;
+  final List<_TabSpec> specs;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: AppColors.gold.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-              border:
-                  Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      decoration: BoxDecoration(
+        color: AppColors.graphite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.steel),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: TabBar(
+        controller: controller,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
+        labelPadding: const EdgeInsets.symmetric(horizontal: 14),
+        indicator: BoxDecoration(
+          color: AppColors.gold.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: AppColors.gold.withValues(alpha: 0.55)),
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
+        labelColor: AppColors.gold,
+        unselectedLabelColor: AppColors.textSecondary,
+        labelStyle: const TextStyle(
+            fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.6),
+        unselectedLabelStyle: const TextStyle(
+            fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6),
+        tabs: <Widget>[
+          for (final s in specs)
+            Tab(
+              height: 36,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(s.icon, size: 14),
+                  const SizedBox(width: 6),
+                  Text(s.label),
+                ],
+              ),
             ),
-            child: Icon(icon, size: 16, color: AppColors.gold),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(label,
-                style: Theme.of(context).textTheme.bodyLarge),
-          ),
-          const Icon(Icons.lock_clock, color: AppColors.textTertiary, size: 16),
         ],
       ),
     );

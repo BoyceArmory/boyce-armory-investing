@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../providers/auth_state_provider.dart';
 import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
+import '../../features/support/presentation/screens/support_ticket_screen.dart';
 import '../../features/alerts/presentation/screens/alert_detail_screen.dart';
 import '../../features/alerts/presentation/screens/hot_trades_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
@@ -131,6 +132,13 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: RoutePaths.adminDashboard,
         builder: (BuildContext c, GoRouterState s) =>
             const AdminDashboardScreen(),
+      ),
+
+      // Support ticket (full-screen) — opened from Profile.
+      GoRoute(
+        path: RoutePaths.supportTicket,
+        builder: (BuildContext c, GoRouterState s) =>
+            const SupportTicketScreen(),
       ),
 
       // Customer shell with bottom navigation.

@@ -53,6 +53,14 @@ class ApiClient {
     return _parseJson(r);
   }
 
+  Future<Map<String, dynamic>> deleteJson(
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
+    final http.Response r = await _send('DELETE', path, body: body);
+    return _parseJson(r);
+  }
+
   // ---------- internals ----------
 
   Future<http.Response> _send(

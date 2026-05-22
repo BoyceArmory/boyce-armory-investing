@@ -10,7 +10,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
-import '../../../../shared/widgets/section_header.dart';
 import '../providers/scanner_providers.dart';
 import '../widgets/scanner_alert_card.dart';
 import '../widgets/scanner_card_skeleton.dart';
@@ -101,20 +100,28 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         bottom: false,
         child: Column(
           children: <Widget>[
+            // Branded image header — replaces the old SectionHeader.
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              child: SectionHeader(
-                eyebrow: 'Scanner',
-                title: _adminView && isAdmin ? 'All Setups' : 'Live Setups',
-                action: isAdmin
-                    ? _AdminToggle(
-                        adminView: _adminView,
-                        onChanged: (bool v) =>
-                            setState(() => _adminView = v),
-                      )
-                    : null,
+              child: Image.asset(
+                'assets/buttons/scanner_button.png',
+                fit: BoxFit.contain,
+                width: double.infinity,
               ),
             ),
+            // Admin Public/All toggle stays as its own row below the banner
+            // so the brand image isn't competing with controls.
+            if (isAdmin)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: _AdminToggle(
+                    adminView: _adminView,
+                    onChanged: (bool v) => setState(() => _adminView = v),
+                  ),
+                ),
+              ),
             _ModeTabs(controller: _tabs, labels: _tabLabels),
             const SizedBox(height: 8),
             Expanded(
