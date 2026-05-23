@@ -33,12 +33,12 @@ workflows:
         track: internal
         submit_as_draft: true
 
-  ios-release:
+    ios-release:
     name: iOS Release
     max_build_duration: 60
     instance_type: mac_mini_m2
     integrations:
-      app_store_connect: Boyce Armory
+      app_store_connect: "Boyce Armory"
     environment:
       ios_signing:
         distribution_type: app_store
@@ -50,20 +50,42 @@ workflows:
       - name: Get Flutter packages
         script: |
           flutter packages pub get
+
       - name: Clean iOS build artifacts
-        working_directory: ios
         script: |
-          rm -rf Pods Podfile.lock
           flutter clean
           flutter pub get
+          rm -rf ios/Pods ios/Podfile.lock
+
       - name: Install pods
         working_directory: ios
         script: |
           pod install --repo-update
+
       - name: Flutter analyze
         script: |
           flutter analyze --no-fatal-infos
         ignore_failure: true
+
+      - name: Create export_options.plist
+        script: |
+          cat > /Users/builder/export_options.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>compileBitcode</key>
+            <false/>
+          </dict>
+          </plist>
+          EOF
+
       - name: Build iOS (.ipa) for App Store
         script: |
           flutter build ipa --release \
