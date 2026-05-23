@@ -40,24 +40,18 @@ class DefaultFirebaseOptions {
   );
 
   // From google-services.json (com.boycearmory.investing).
-  // NOTE: appId here is stale until you re-register the Android app in
-  // Firebase Console under com.boycearmory.investing and update with the
-  // new value (or re-run `flutterfire configure --project=boyce-armory-investing`).
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCY-5KUV3d1fgdZswFR_JfXdeu8fg9Ctrs',
-    appId: '1:315573366149:android:9f709652e400e0e69da8ec',
+    appId: '1:315573366149:android:195e6dfaab67d0469da8ec',
     messagingSenderId: '315573366149',
     projectId: 'boyce-armory-investing',
     storageBucket: 'boyce-armory-investing.firebasestorage.app',
   );
 
   // From GoogleService-Info.plist (com.boycearmory.investing).
-  // NOTE: appId here is stale until you re-register the iOS app in Firebase
-  // Console under com.boycearmory.investing and update with the new value
-  // (or re-run `flutterfire configure --project=boyce-armory-investing`).
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDRtWOwgaZS5YYOMRRaD3tvs2MhPlvVODE',
-    appId: '1:315573366149:ios:8112703f383878239da8ec',
+    appId: '1:315573366149:ios:3e981fd0fac5a5899da8ec',
     messagingSenderId: '315573366149',
     projectId: 'boyce-armory-investing',
     storageBucket: 'boyce-armory-investing.firebasestorage.app',
