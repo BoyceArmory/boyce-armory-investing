@@ -3,42 +3,51 @@ workflows:
     name: Android Release
     max_build_duration: 60
     instance_type: linux_x2
+
     environment:
       flutter: stable
       android_signing:
         - boyce_armory_keystore
       vars:
         PACKAGE_NAME: "com.boycearmory.investing"
+
     scripts:
       - name: Set up local.properties
         script: |
           echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
+
       - name: Get Flutter packages
         script: |
           flutter packages pub get
+
       - name: Flutter analyze
         script: |
           flutter analyze --no-fatal-infos
         ignore_failure: true
+
       - name: Build app bundle (.aab)
         script: |
           flutter build appbundle --release
+
     artifacts:
       - build/**/outputs/**/*.aab
       - build/**/outputs/**/mapping.txt
       - flutter_drive.log
+
     publishing:
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
         submit_as_draft: true
 
-    ios-release:
+  ios-release:
     name: iOS Release
     max_build_duration: 60
     instance_type: mac_mini_m2
+
     integrations:
       app_store_connect: "Boyce Armory"
+
     environment:
       ios_signing:
         distribution_type: app_store
@@ -46,6 +55,7 @@ workflows:
       flutter: stable
       xcode: latest
       cocoapods: default
+
     scripts:
       - name: Get Flutter packages
         script: |
@@ -90,10 +100,12 @@ workflows:
         script: |
           flutter build ipa --release \
             --export-options-plist=/Users/builder/export_options.plist
+
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
       - flutter_drive.log
+
     publishing:
       app_store_connect:
         auth: integration
