@@ -50,6 +50,12 @@ workflows:
       - name: Get Flutter packages
         script: |
           flutter packages pub get
+      - name: Clean iOS build artifacts
+        working_directory: ios
+        script: |
+          rm -rf Pods Podfile.lock
+          flutter clean
+          flutter pub get
       - name: Install pods
         working_directory: ios
         script: |

@@ -54,10 +54,22 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
-    # Force iOS deployment target to 13.0 on all pods so transitive deps don't
-    # downgrade us (some older pods default to 11.0 / 12.0 and break Firebase).
     target.build_configurations.each do |config|
+      # Force iOS deployment target to 13.0 on all pods so transitive deps don't
+      # downgrade us (some older pods default to 11.0 / 12.0 and break Firebase).
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      # Xcode 15 defaults ENABLE_USER_SCRIPT_SANDBOXING to YES, which blocks
+      # the Flutter+CocoaPods integration script from writing build artifacts
+      # and produces: "The sandbox is not in sync with the Podfile.lock."
+      # Disable it on every Pods target so the build can write what it needs.
+      config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
     end
+  end
+
+  # Also patch the Pods project itself (not just its targets) — some Xcode 15
+  # configurations check the project-level setting before target overrides.
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
   end
 end
