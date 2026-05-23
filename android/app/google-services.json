@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "315573366149",
+    "project_id": "boyce-armory-investing",
+    "storage_bucket": "boyce-armory-investing.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:315573366149:android:9f709652e400e0e69da8ec",
+        "android_client_info": {
+          "package_name": "com.boycearmory.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCY-5KUV3d1fgdZswFR_JfXdeu8fg9Ctrs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

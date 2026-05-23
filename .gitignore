@@ -12,8 +12,9 @@ ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
 android/.gradle
 android/local.properties
-android/app/google-services.json
-ios/Runner/GoogleService-Info.plist
+# google-services.json and GoogleService-Info.plist are intentionally NOT
+# ignored — Codemagic needs them committed to build. They contain only
+# public Firebase config; security is enforced by Firestore Rules.
 ios/firebase_app_id_file.json
 
 # IDE
