@@ -88,13 +88,13 @@ workflows:
             <string>app-store</string>
             <key>signingStyle</key>
             <string>automatic</string>
-            <key>uploadBitcode</key>
-            <false/>
-            <key>compileBitcode</key>
-            <false/>
           </dict>
           </plist>
           EOF
+
+      - name: Set up iOS code signing
+        script: |
+          xcode-project use-profiles
 
       - name: Build iOS (.ipa) for App Store
         script: |
