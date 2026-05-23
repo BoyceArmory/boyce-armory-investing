@@ -30,7 +30,7 @@ if (hasReleaseKeystore) {
 }
 
 android {
-    namespace = "com.boycearmory.app"
+    namespace = "com.boycearmory.investing"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -44,7 +44,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.boycearmory.app"
+        applicationId = "com.boycearmory.investing"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

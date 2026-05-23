@@ -1,4 +1,4 @@
-package com.boycearmory.app
+package com.boycearmory.investing
 
 import io.flutter.embedding.android.FlutterActivity
 

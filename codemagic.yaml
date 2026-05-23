@@ -8,7 +8,7 @@ workflows:
       android_signing:
         - boyce_armory_keystore
       vars:
-        PACKAGE_NAME: "com.boycearmory.app"
+        PACKAGE_NAME: "com.boycearmory.investing"
     scripts:
       - name: Set up local.properties
         script: |
@@ -42,7 +42,7 @@ workflows:
     environment:
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.boycearmory.app
+        bundle_identifier: com.boycearmory.investing
       flutter: stable
       xcode: latest
       cocoapods: default
