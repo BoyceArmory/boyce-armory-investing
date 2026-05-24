@@ -27,12 +27,28 @@
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<!--
-	  Note: removed UIApplicationSceneManifest block. It referenced
-	  $(PRODUCT_MODULE_NAME).SceneDelegate but no such class exists in this
-	  project. Without it, iOS uses the AppDelegate-based lifecycle which
-	  FlutterAppDelegate handles end-to-end. If we ever need scene-aware
-	  features (Stage Manager, multi-window iPad), add a real SceneDelegate.swift
-	  that bridges to FlutterAppDelegate and restore this block.
+	  Privacy usage descriptions — REQUIRED by App Store review.
+	  Missing any of these for a capability the app's code references
+	  (image_picker → camera/photos) will:
+	  1. Cause a runtime crash the first time the capability is invoked
+	  2. Trigger automatic rejection by App Store static analysis
+	-->
+		<key>NSCameraUsageDescription</key>
+		<string>Boyce Armory uses the camera so you can take and upload a profile photo.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Boyce Armory needs access to your photos so you can choose a profile picture.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>Boyce Armory can save chart screenshots and shared content to your photo library.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Boyce Armory does not currently use the microphone. This entry is required because the image_picker library can request it on iOS.</string>
+		<key>NSUserTrackingUsageDescription</key>
+		<string>Boyce Armory does not track you across other companies' apps or websites.</string>
+		<!--
+	  Note: SceneDelegate.swift exists but is intentionally not referenced
+	  by a UIApplicationSceneManifest. iOS falls back to AppDelegate-based
+	  lifecycle which FlutterAppDelegate handles end-to-end. To enable
+	  scene-aware features (Stage Manager, multi-window iPad) later,
+	  add a UIApplicationSceneManifest block pointing at SceneDelegate.
 	-->
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
