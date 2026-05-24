@@ -1,6 +1,5 @@
 import UIKit
 import Flutter
-import FirebaseCore
 import FirebaseMessaging
 import UserNotifications
 
@@ -12,7 +11,16 @@ import UserNotifications
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
 
-    FirebaseApp.configure()
+    // NOTE: Do NOT call FirebaseApp.configure() here.
+    // Firebase init happens in Dart via main.dart → FirebaseService.init() →
+    // Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).
+    // Calling configure() here too would either:
+    //   (a) crash with "FirebaseApp.configure() has already been called", or
+    //   (b) require GoogleService-Info.plist to be registered as a Bundle
+    //       Resource in the Xcode project (which currently it is not).
+    // Setting the APNs token below works because the device-token callback
+    // arrives asynchronously, by which time Dart has already initialized
+    // Firebase.
 
     UNUserNotificationCenter.current().delegate = self
 
