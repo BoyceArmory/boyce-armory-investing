@@ -41,8 +41,6 @@
 		<string>Boyce Armory can save chart screenshots and shared content to your photo library.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>Boyce Armory does not currently use the microphone. This entry is required because the image_picker library can request it on iOS.</string>
-		<key>NSUserTrackingUsageDescription</key>
-		<string>Boyce Armory does not track you across other companies' apps or websites.</string>
 		<!--
 	  Note: SceneDelegate.swift exists but is intentionally not referenced
 	  by a UIApplicationSceneManifest. iOS falls back to AppDelegate-based
