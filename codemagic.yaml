@@ -2,7 +2,10 @@ workflows:
   android-release:
     name: Android Release
     max_build_duration: 60
-    instance_type: linux_x2
+    # linux_x2 (2× CPU/RAM) requires a paid Codemagic plan. Standard `linux`
+    # is included on the free tier and is enough for Flutter AAB builds —
+    # they typically finish in 12-18 min vs 8-12 on linux_x2.
+    instance_type: linux
 
     environment:
       flutter: stable
@@ -34,11 +37,15 @@ workflows:
       - build/**/outputs/**/mapping.txt
       - flutter_drive.log
 
-    publishing:
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
-        submit_as_draft: true
+    # publishing:
+    #   google_play:
+    #     credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+    #     track: internal
+    #     submit_as_draft: true
+    #
+    # ^ Re-enable after creating a Google Cloud service account with Play
+    # Console publishing access. For first ship: leave commented and upload
+    # the AAB manually to Play Console → Internal testing → Create new release.
 
   ios-release:
     name: iOS Release
