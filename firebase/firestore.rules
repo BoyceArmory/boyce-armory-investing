@@ -80,21 +80,56 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isAdmin();
 
-      // Messages: anyone signed in can read; only the sender can create their
-      // own message; only sender or admin can edit / delete.
+      // ADMIN BUYS room: admin-only writes, everyone reads + reacts.
+      // The room id is hardcoded because it's a special broadcast-only feed.
+      //
+      // Rules:
+      //   - read: any signed-in user (they need to see the screenshots)
+      //   - create: admin only (only Boyce Armory posts trades here)
+      //   - update: sender (admin) edits caption, OR any signed-in user
+      //     editing ONLY the `reactions` field (so users can emoji-react)
+      //   - delete: admin only
+      //
+      // The "reactions-only update" carve-out is the trickier rule. We allow
+      // a non-admin update IFF every changed field is `reactions` (and the
+      // unchanged fields stay identical to the existing doc).
       match /messages/{messageId} {
+        // Limit which fields a non-admin updater can touch on existing messages.
+        function reactionsOnlyDiff() {
+          return request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['reactions', 'updatedAt']);
+        }
+
         allow read: if isSignedIn();
 
-        allow create: if isSignedIn()
-          && request.resource.data.senderId == uid()
-          && request.resource.data.deleted == false
-          && request.resource.data.roomId == roomId;
-
-        allow update: if isSignedIn() && (
-          isAdmin()
-          || resource.data.senderId == uid()
+        // ADMIN BUYS: only admin can create new messages.
+        // All other rooms: any signed-in user can post their own message.
+        allow create: if (
+          roomId == 'admin_buys'
+            ? isAdmin()
+              && request.resource.data.senderId == uid()
+              && request.resource.data.deleted == false
+              && request.resource.data.roomId == roomId
+            : isSignedIn()
+              && request.resource.data.senderId == uid()
+              && request.resource.data.deleted == false
+              && request.resource.data.roomId == roomId
         );
 
+        allow update: if isSignedIn() && (
+          // Admin can edit anything (caption tweaks, moderation).
+          isAdmin()
+          // Sender can edit their own message (text rooms).
+          || resource.data.senderId == uid()
+          // Anyone signed-in can toggle their reaction, but ONLY the
+          // reactions field may change. This is how regular users emoji-react
+          // to ADMIN BUYS messages without being able to spoof content.
+          || reactionsOnlyDiff()
+        );
+
+        // Only admin can delete a message. Non-admins cannot delete admin
+        // posts, and the broadcast-only nature of ADMIN BUYS means there's
+        // never a non-admin message in that room to delete.
         allow delete: if isAdmin();
       }
     }
