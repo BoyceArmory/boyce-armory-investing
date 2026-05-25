@@ -1,7 +1,7 @@
 name: boyce_armory
 description: Boyce Armory Investing - premium options trading education + live scanner alerts.
 publish_to: "none"
-version: 2.0.0+6
+version: 2.0.0+7
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -50,6 +50,11 @@ dependencies:
   # "Save" on the fullscreen viewer. Requires NSPhotoLibraryAddUsageDescription
   # on iOS (already declared in ios/Runner/Info.plist).
   gal: ^2.3.0
+
+  # Charts for the performance / track-record screen (equity curve, monthly
+  # P&L bars, setup breakdown, etc.). Pure-Dart, no native dependency, works
+  # the same on iOS and Android.
+  fl_chart: ^0.69.0
 
 dev_dependencies:
   flutter_lints: ^4.0.0
