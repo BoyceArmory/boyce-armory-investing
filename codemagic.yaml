@@ -20,6 +20,25 @@ workflows:
         script: |
           echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
 
+      - name: Set up key.properties for release signing
+        script: |
+          # build.gradle.kts looks for android/key.properties to pick the
+          # release signing config. Codemagic exposes the keystore (uploaded
+          # under the "boyce_armory_keystore" reference name) via these env
+          # vars: CM_KEYSTORE_PATH, CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS,
+          # CM_KEY_PASSWORD. We translate those into the key.properties file
+          # the Gradle script expects.
+          #
+          # Without this step the Gradle release build falls back to the
+          # debug keystore and Play Console rejects the AAB with:
+          #   "uploaded an APK or Android App Bundle signed in debug mode".
+          cat > "$CM_BUILD_DIR/android/key.properties" <<EOF
+          storeFile=$CM_KEYSTORE_PATH
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          keyPassword=$CM_KEY_PASSWORD
+          EOF
+
       - name: Get Flutter packages
         script: |
           flutter packages pub get
