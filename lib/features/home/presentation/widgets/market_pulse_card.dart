@@ -63,8 +63,8 @@ class MarketPulseCard extends ConsumerWidget {
                   alignment: const Alignment(0, -0.45),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-  horizontal: 18,
-),
+                      horizontal: 18,
+                    ),
                     child: async.when(
                       loading: () => const _PulseStatRow.empty(),
                       error: (
@@ -77,10 +77,82 @@ class MarketPulseCard extends ConsumerWidget {
                     ),
                   ),
                 ),
+                // Market session badge top-right: LIVE / PRE-MARKET /
+                // AFTER-HOURS / CLOSED. Tells users whether the SPY/QQQ/DIA
+                // values are real-time or last-close. Always rendered so the
+                // card never looks empty on weekends or overnight.
+                Positioned(
+                  top: 12,
+                  right: 14,
+                  child: async.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (Object e, StackTrace s) => const SizedBox.shrink(),
+                    data: (HomeOverview ov) =>
+                        _SessionBadge(status: ov.marketStatus),
+                  ),
+                ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SessionBadge extends StatelessWidget {
+  const _SessionBadge({required this.status});
+  final MarketStatus status;
+
+  Color get _color {
+    switch (status) {
+      case MarketStatus.live:
+        return AppColors.bullish;
+      case MarketStatus.pre:
+      case MarketStatus.post:
+        return AppColors.gold;
+      case MarketStatus.closed:
+        return AppColors.textSecondary;
+    }
+  }
+
+  IconData get _icon {
+    switch (status) {
+      case MarketStatus.live:
+        return Icons.circle;
+      case MarketStatus.pre:
+        return Icons.wb_twilight;
+      case MarketStatus.post:
+        return Icons.nights_stay_outlined;
+      case MarketStatus.closed:
+        return Icons.lock_outline;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.55),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _color.withOpacity(0.7), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(_icon, size: 9, color: _color),
+          const SizedBox(width: 5),
+          Text(
+            status.label,
+            style: TextStyle(
+              color: _color,
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ],
       ),
     );
   }

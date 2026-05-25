@@ -1,5 +1,41 @@
 import 'package:equatable/equatable.dart';
 
+/// Coarse market-session label returned by the backend.
+///   live   — 09:30-16:00 ET, regular session, prices are real-time
+///   pre    — 04:00-09:30 ET, pre-market, lighter volume
+///   post   — 16:00-20:00 ET, after-hours, lighter volume
+///   closed — overnight / weekends / holidays — values are last close
+enum MarketStatus { live, pre, post, closed }
+
+extension MarketStatusX on MarketStatus {
+  String get label {
+    switch (this) {
+      case MarketStatus.live:
+        return 'LIVE';
+      case MarketStatus.pre:
+        return 'PRE-MARKET';
+      case MarketStatus.post:
+        return 'AFTER-HOURS';
+      case MarketStatus.closed:
+        return 'CLOSED';
+    }
+  }
+
+  static MarketStatus fromString(String? raw) {
+    switch ((raw ?? '').toLowerCase()) {
+      case 'live':
+        return MarketStatus.live;
+      case 'pre':
+        return MarketStatus.pre;
+      case 'post':
+        return MarketStatus.post;
+      case 'closed':
+      default:
+        return MarketStatus.closed;
+    }
+  }
+}
+
 class HomeOverview extends Equatable {
   const HomeOverview({
     required this.regime,
@@ -10,6 +46,7 @@ class HomeOverview extends Equatable {
     this.events = const <EconEvent>[],
     this.performance,
     required this.asOf,
+    this.marketStatus = MarketStatus.closed,
   });
 
   final MarketRegime regime;
@@ -20,6 +57,7 @@ class HomeOverview extends Equatable {
   final List<EconEvent> events;
   final DeskPerformance? performance;
   final DateTime asOf;
+  final MarketStatus marketStatus;
 
   factory HomeOverview.fromJson(Map<String, dynamic> j) {
     final regime = j['regime'] is Map<String, dynamic>
@@ -52,14 +90,16 @@ class HomeOverview extends Equatable {
         ? DeskPerformance.fromJson(j['performance'] as Map<String, dynamic>)
         : null;
     final asOf = DateTime.tryParse((j['asOf'] ?? '').toString()) ?? DateTime.now();
+    final marketStatus = MarketStatusX.fromString(j['marketStatus'] as String?);
     return HomeOverview(
       regime: regime, indices: indices, sectors: sectors, vix: vix,
       news: news, events: events, performance: performance, asOf: asOf,
+      marketStatus: marketStatus,
     );
   }
 
   @override
-  List<Object?> get props => [regime, indices, sectors, vix, news, events, performance, asOf];
+  List<Object?> get props => [regime, indices, sectors, vix, news, events, performance, asOf, marketStatus];
 }
 
 class NewsItem extends Equatable {
