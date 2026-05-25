@@ -2,10 +2,11 @@ workflows:
   android-release:
     name: Android Release
     max_build_duration: 60
-    # linux_x2 (2× CPU/RAM) requires a paid Codemagic plan. Standard `linux`
-    # is included on the free tier and is enough for Flutter AAB builds —
-    # they typically finish in 12-18 min vs 8-12 on linux_x2.
-    instance_type: linux
+    # instance_type omitted on purpose. Codemagic picks the default Linux
+    # instance for your plan automatically. Trying to pin `linux_x2` or
+    # `linux` explicitly was failing with "selected instance type is not
+    # available with the current billing plan" — letting Codemagic choose
+    # avoids that. Add the pin back if/when you upgrade to a paid tier.
 
     environment:
       flutter: stable
