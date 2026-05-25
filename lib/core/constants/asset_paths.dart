@@ -46,6 +46,15 @@ class AssetPaths {
       '${learnDir}trend_continuation.png';
   static const String learnVolume = '${learnDir}volume.png';
   static const String learnVwap = '${learnDir}vwap.png';
+  // Options-themed hero images (added May 2026).
+  static const String learnStrikesExpiration =
+      '${learnDir}strikes_and_expiration.png';
+  static const String learnOptionPricing =
+      '${learnDir}whatmovesanoptionprice.png';
+  static const String learnGreeks =
+      '${learnDir}the_greeks_delta_theta_gamma.png';
+  // Position-sizing hero (filename keeps the user's spelling).
+  static const String learnPositionSizing = '${learnDir}postion_sizing.png';
 
   // --- Quick-action button artwork ---
   static const String btnHotTrades = 'assets/buttons/hot_trades_button.png';

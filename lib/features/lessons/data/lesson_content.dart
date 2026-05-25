@@ -109,6 +109,8 @@ const List<LearnSection> learnSections = <LearnSection>[
         title: 'Strikes and Expiration',
         summary:
             'Choosing a strike and an expiration IS the trade.',
+        imageAssetPath: AssetPaths.learnStrikesExpiration,
+        imageTitle: 'Strikes & expiration',
         bullets: <String>[
           'In-the-money: already profitable; behaves like the stock.',
           'At-the-money: closest to current price; most sensitive.',
@@ -121,6 +123,8 @@ const List<LearnSection> learnSections = <LearnSection>[
         title: 'What Moves an Option Price',
         summary:
             'Three things drive option prices: direction, time, and volatility.',
+        imageAssetPath: AssetPaths.learnOptionPricing,
+        imageTitle: 'What moves an option price',
         bullets: <String>[
           'Direction (delta): how much the option moves per \$1 in the stock.',
           'Time (theta): how much value the option loses every day.',
@@ -133,6 +137,8 @@ const List<LearnSection> learnSections = <LearnSection>[
         title: 'The Greeks: Delta, Theta, Gamma',
         summary:
             'Greeks measure how an option price reacts to the world around it.',
+        imageAssetPath: AssetPaths.learnGreeks,
+        imageTitle: 'Delta · Theta · Gamma',
         bullets: <String>[
           'Delta (0 to 1): for every \$1 the stock moves, the option moves this much. A 0.50 delta call gains ~\$0.50 if the stock goes up \$1.',
           'Theta: dollars lost per day to time decay. Higher near expiration.',
@@ -386,6 +392,8 @@ const List<LearnSection> learnSections = <LearnSection>[
         title: 'Position Sizing',
         summary:
             'Pick the size before the trade so emotion never picks it for you.',
+        imageAssetPath: AssetPaths.learnPositionSizing,
+        imageTitle: 'Position sizing',
         bullets: <String>[
           'Risk a fixed percent of your account per trade (1-2% is standard).',
           'Position size = risk amount / (entry - stop).',

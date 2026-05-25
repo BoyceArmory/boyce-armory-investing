@@ -13,6 +13,7 @@ import '../../data/lesson_models.dart';
 import '../providers/lesson_providers.dart';
 import '../widgets/learn_pill.dart';
 import '../widgets/track_style.dart';
+import 'image_viewer_screen.dart';
 
 class LessonDetailScreen extends ConsumerWidget {
   const LessonDetailScreen({
@@ -276,6 +277,21 @@ class _LessonImageCard extends StatelessWidget {
   final LearnLesson lesson;
   final Color accent;
 
+  void _openFullscreen(BuildContext context) {
+    final String path = lesson.imageAssetPath!;
+    final String title = lesson.imageTitle?.trim().isNotEmpty == true
+        ? lesson.imageTitle!
+        : lesson.title;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ImageViewerScreen(
+          assetPath: path,
+          heroTitle: title,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PremiumCard(
@@ -290,21 +306,68 @@ class _LessonImageCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
           ],
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              lesson.imageAssetPath!,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (BuildContext c, _, __) => Container(
-                height: 140,
-                alignment: Alignment.center,
-                color: AppColors.carbon,
-                child: const Text(
-                  'Image asset not bundled yet.',
-                  style: TextStyle(color: AppColors.textTertiary),
+          // Tap anywhere on the image opens the fullscreen pinch-to-zoom +
+          // save-to-photos viewer.
+          GestureDetector(
+            onTap: () => _openFullscreen(context),
+            child: Stack(
+              children: <Widget>[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Hero(
+                    tag: 'lesson_image_${lesson.imageAssetPath}',
+                    child: Image.asset(
+                      lesson.imageAssetPath!,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (BuildContext c, _, __) => Container(
+                        height: 140,
+                        alignment: Alignment.center,
+                        color: AppColors.carbon,
+                        child: const Text(
+                          'Image asset not bundled yet.',
+                          style: TextStyle(color: AppColors.textTertiary),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                // Small "tap to expand" affordance bottom-right so users
+                // know the image is interactive.
+                Positioned(
+                  right: 10,
+                  bottom: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const <Widget>[
+                        Icon(
+                          Icons.fullscreen,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          'Tap to expand',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

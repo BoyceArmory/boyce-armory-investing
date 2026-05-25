@@ -46,6 +46,11 @@ dependencies:
   # legal links to terms/privacy). Required for in-app support workflow.
   url_launcher: ^6.3.1
 
+  # Saves lesson chart images to the user's photo library when they tap
+  # "Save" on the fullscreen viewer. Requires NSPhotoLibraryAddUsageDescription
+  # on iOS (already declared in ios/Runner/Info.plist).
+  gal: ^2.3.0
+
 dev_dependencies:
   flutter_lints: ^4.0.0
   flutter_test:
