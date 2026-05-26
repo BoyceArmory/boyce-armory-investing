@@ -32,10 +32,26 @@ service cloud.firestore {
     }
 
     // -------------- scanner -------------
-    // Public alerts (customer-visible): any signed-in user can read,
-    // only admins (or backend with serviceAccount) can write.
+    // Public alerts (customer-visible): a signed-in non-admin can only
+    // read docs that are BOTH visibility=public AND still_valid !== false.
+    // The decay job sets still_valid=false on invalidated cards, and the
+    // engine writes admin_only for weak/pre-confirm/WATCH-grade ones.
+    // Admins can read everything for moderation.
+    //
+    // Without these constraints, a malicious user could bypass the Flutter
+    // filters and stream all scanner_alerts including admin_only / decayed
+    // ones — confusing UX at best, and could expose pre-confirm setups
+    // that aren't ready for public consumption.
+    //
+    // Writes: only admin (or backend service account, which bypasses rules).
     match /scanner_alerts/{id} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        (
+          resource.data.visibility == 'public' &&
+          resource.data.still_valid != false
+        )
+      );
       allow write: if isAdmin();
     }
 
