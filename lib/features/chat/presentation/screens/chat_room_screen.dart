@@ -14,6 +14,7 @@ import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../shared/widgets/screen_header.dart';
+import '../../../admin/presentation/providers/admin_providers.dart';
 import '../../data/chat_models.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/chat_message_bubble.dart';
@@ -72,18 +73,59 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     setState(() => _sending = true);
     _composer.clear();
     try {
-      await ref.read(chatRepositoryProvider).sendText(
-            roomId: room.id,
-            roomTitle: room.title,
-            text: text,
-            senderName: _senderName(appUser, fbUser, isAdmin: isAdmin),
-            profileImageUrl: appUser?.photoUrl,
-            isAdmin: isAdmin,
-          );
+      // Block non-admins in admin-only rooms (defense-in-depth — the
+      // composer is already hidden but a fast double-tap could still race).
+      if (room.adminOnly && !isAdmin) {
+        context.showSnack(
+          'Only admins can post in this room.',
+          isError: true,
+        );
+        return;
+      }
+      final ChatSendResult? sent =
+          await ref.read(chatRepositoryProvider).sendText(
+                roomId: room.id,
+                roomTitle: room.title,
+                text: text,
+                senderName: _senderName(appUser, fbUser, isAdmin: isAdmin),
+                profileImageUrl: appUser?.photoUrl,
+                isAdmin: isAdmin,
+              );
+      if (sent != null && room.broadcastPush && isAdmin) {
+        await _broadcastIfBroadcastRoom(room: room, result: sent);
+      }
     } catch (e) {
       if (mounted) context.showSnack('Send failed: $e', isError: true);
     } finally {
       if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  /// Fires the FCM broadcast for an admin post in a broadcastPush room.
+  /// Best-effort: the chat message is already saved in Firestore, so we
+  /// don't want a broadcast failure to surface as a "post failed" to the
+  /// user. Log a snack on error but don't rethrow.
+  Future<void> _broadcastIfBroadcastRoom({
+    required ChatRoomDef room,
+    required ChatSendResult result,
+  }) async {
+    try {
+      await ref.read(adminRepositoryProvider).broadcastChatMessage(
+            roomId: room.id,
+            roomTitle: room.title,
+            messageId: result.messageId,
+            text: result.text,
+            messageType:
+                result.messageType == ChatMessageType.image ? 'image' : 'text',
+            imageUrl: result.imageUrl,
+          );
+    } catch (e) {
+      if (mounted) {
+        context.showSnack(
+          'Posted, but push broadcast failed: $e',
+          isError: true,
+        );
+      }
     }
   }
 
@@ -104,15 +146,27 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
 
     setState(() => _uploading = true);
     try {
-      final bool ok = await ref.read(chatRepositoryProvider).pickAndSendImage(
-            roomId: room.id,
-            roomTitle: room.title,
-            caption: caption,
-            senderName: _senderName(appUser, fbUser, isAdmin: isAdmin),
-            profileImageUrl: appUser?.photoUrl,
-            isAdmin: isAdmin,
-          );
-      if (ok) _composer.clear();
+      if (room.adminOnly && !isAdmin) {
+        context.showSnack(
+          'Only admins can post in this room.',
+          isError: true,
+        );
+        return;
+      }
+      final ChatSendResult sent =
+          await ref.read(chatRepositoryProvider).pickAndSendImage(
+                roomId: room.id,
+                roomTitle: room.title,
+                caption: caption,
+                senderName: _senderName(appUser, fbUser, isAdmin: isAdmin),
+                profileImageUrl: appUser?.photoUrl,
+                isAdmin: isAdmin,
+              );
+      if (sent.cancelled) return;
+      _composer.clear();
+      if (room.broadcastPush && isAdmin) {
+        await _broadcastIfBroadcastRoom(room: room, result: sent);
+      }
     } catch (e) {
       if (mounted) context.showSnack('Upload failed: $e', isError: true);
     } finally {
@@ -459,15 +513,56 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
               },
             ),
           ),
-          _Composer(
-            controller: _composer,
-            allowImages: room?.allowImages ?? true,
-            sending: _sending,
-            uploading: _uploading,
-            onSend: _sendText,
-            onUpload: _sendImage,
-          ),
+          // Hide composer entirely when the room is admin-only and the
+          // current user isn't an admin. Replace with a small read-only
+          // info banner so users understand why they can't post.
+          if ((room?.adminOnly ?? false) && !ref.watch(isAdminProvider))
+            const _ReadOnlyBanner()
+          else
+            _Composer(
+              controller: _composer,
+              allowImages: room?.allowImages ?? true,
+              sending: _sending,
+              uploading: _uploading,
+              onSend: _sendText,
+              onUpload: _sendImage,
+            ),
         ],
+      ),
+    );
+  }
+}
+
+class _ReadOnlyBanner extends StatelessWidget {
+  const _ReadOnlyBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: const BoxDecoration(
+          color: AppColors.carbon,
+          border: Border(top: BorderSide(color: AppColors.steel, width: 0.5)),
+        ),
+        child: Row(
+          children: const <Widget>[
+            Icon(Icons.lock_outline, size: 16, color: AppColors.gold),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'This room is broadcast-only. Watch for live trade screenshots from Boyce Armory.',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

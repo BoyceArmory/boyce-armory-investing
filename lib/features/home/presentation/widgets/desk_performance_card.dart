@@ -7,119 +7,164 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../providers/home_providers.dart';
 
-/// Desk performance card. Shows global win-rate + trade counts so users can
-/// glance at the track record without leaving the home page. Tapping the
-/// card navigates to the full Performance screen at /performance.
 class DeskPerformanceCard extends ConsumerWidget {
   const DeskPerformanceCard({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(homeOverviewStreamProvider);
+
     return async.maybeWhen(
       data: (o) {
         final p = o.performance;
-        if (p == null || p.totalTrades == 0) return const SizedBox.shrink();
+
+        if (p == null || p.totalTrades == 0) {
+          return const SizedBox.shrink();
+        }
+
         final winColor = p.winRate >= 60
             ? AppColors.bullish
-            : (p.winRate >= 50 ? AppColors.warning : AppColors.bearish);
+            : (p.winRate >= 50
+                ? AppColors.warning
+                : AppColors.bearish);
+
         return Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: () => context.go(RoutePaths.performance),
-            borderRadius: BorderRadius.circular(14),
-            child: Ink(
-              decoration: BoxDecoration(
-                color: AppColors.graphite,
-                border: Border.all(color: AppColors.steel),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      const Icon(Icons.insights_outlined,
-                          color: AppColors.gold, size: 16),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'DESK PERFORMANCE',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.7,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        '${p.totalTrades} trades',
-                        style: const TextStyle(
-                            color: AppColors.textTertiary, fontSize: 11),
-                      ),
-                      const SizedBox(width: 6),
-                      const Icon(Icons.chevron_right,
-                          size: 16, color: AppColors.textTertiary),
-                    ],
+            borderRadius: BorderRadius.circular(20),
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(
+                    'assets/backgrounds/blank_backgrounds.png',
                   ),
-                  const SizedBox(height: 10),
+                  fit: BoxFit.cover,
+                  opacity: 0.20,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  const Icon(
+                    Icons.insights_outlined,
+                    color: AppColors.gold,
+                    size: 20,
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  const Text(
+                    'DESK PERFORMANCE',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.gold,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  Text(
+                    '${p.totalTrades} trades tracked',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.60),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+
+                  const SizedBox(height: 22),
+
                   Row(
                     children: <Widget>[
                       Expanded(
                         child: _Stat(
                           label: 'WIN RATE',
-                          value: '${p.winRate.toStringAsFixed(1)}%',
+                          value:
+                              '${p.winRate.toStringAsFixed(1)}%',
                           color: winColor,
                         ),
                       ),
+
                       Expanded(
                         child: _Stat(
                           label: 'AVG WIN',
-                          value: '+${p.avgGainPct.toStringAsFixed(1)}%',
+                          value:
+                              '+${p.avgGainPct.toStringAsFixed(1)}%',
                           color: AppColors.bullish,
                         ),
                       ),
+
                       Expanded(
                         child: _Stat(
                           label: 'AVG LOSS',
-                          value: '-${p.avgLossPct.toStringAsFixed(1)}%',
+                          value:
+                              '-${p.avgLossPct.toStringAsFixed(1)}%',
                           color: AppColors.bearish,
                         ),
                       ),
                     ],
                   ),
-                  if (p.bestTradePct > 0 || p.worstTradePct != 0) ...<Widget>[
-                    const SizedBox(height: 8),
+
+                  if (p.bestTradePct > 0 ||
+                      p.worstTradePct != 0) ...<Widget>[
+                    const SizedBox(height: 18),
+
                     Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment.center,
                       children: <Widget>[
-                        if (p.bestTradePct > 0) ...<Widget>[
-                          const Icon(Icons.arrow_upward,
-                              size: 11, color: AppColors.bullish),
-                          const SizedBox(width: 3),
-                          Text(
-                            'Best +${p.bestTradePct.toStringAsFixed(1)}%',
-                            style: const TextStyle(
+                        if (p.bestTradePct > 0)
+                          ...<Widget>[
+                            const Icon(
+                              Icons.arrow_upward,
+                              size: 13,
                               color: AppColors.bullish,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                        ],
-                        if (p.worstTradePct != 0) ...<Widget>[
-                          const Icon(Icons.arrow_downward,
-                              size: 11, color: AppColors.bearish),
-                          const SizedBox(width: 3),
-                          Text(
-                            'Worst ${p.worstTradePct.toStringAsFixed(1)}%',
-                            style: const TextStyle(
+
+                            const SizedBox(width: 4),
+
+                            Text(
+                              'Best +${p.bestTradePct.toStringAsFixed(1)}%',
+                              style: const TextStyle(
+                                color: AppColors.bullish,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+
+                        if (p.bestTradePct > 0 &&
+                            p.worstTradePct != 0)
+                          const SizedBox(width: 18),
+
+                        if (p.worstTradePct != 0)
+                          ...<Widget>[
+                            const Icon(
+                              Icons.arrow_downward,
+                              size: 13,
                               color: AppColors.bearish,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
                             ),
-                          ),
-                        ],
+
+                            const SizedBox(width: 4),
+
+                            Text(
+                              'Worst ${p.worstTradePct.toStringAsFixed(1)}%',
+                              style: const TextStyle(
+                                color: AppColors.bearish,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                       ],
                     ),
                   ],
@@ -140,6 +185,7 @@ class _Stat extends StatelessWidget {
     required this.value,
     required this.color,
   });
+
   final String label;
   final String value;
   final Color color;
@@ -147,23 +193,26 @@ class _Stat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
           label,
+          textAlign: TextAlign.center,
           style: const TextStyle(
-            color: AppColors.textTertiary,
-            fontSize: 9,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.6,
+            color: AppColors.gold,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.8,
           ),
         ),
-        const SizedBox(height: 3),
+
+        const SizedBox(height: 6),
+
         Text(
           value,
+          textAlign: TextAlign.center,
           style: AppTypography.mono(
-            size: 18,
-            weight: FontWeight.w800,
+            size: 20,
+            weight: FontWeight.w900,
             color: color,
           ),
         ),

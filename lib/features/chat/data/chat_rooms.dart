@@ -4,6 +4,18 @@ import 'chat_models.dart';
 
 /// The rooms Boyce Armory ships with. Add or rename here.
 const List<ChatRoomDef> chatRooms = <ChatRoomDef>[
+  // Admin-only broadcast room: Jonathan posts screenshots of his real trades
+  // and every post fires a push notification to all users in real time.
+  // Read-only for everyone else. THIS IS THE PROOF-OF-CONCEPT CHANNEL.
+  ChatRoomDef(
+    id: 'admin_buys',
+    title: 'ADMIN BUYS',
+    description:
+        'Real-time screenshots of Boyce Armory trades. Every post pushes to your phone.',
+    icon: Icons.bolt,
+    adminOnly: true,
+    broadcastPush: true,
+  ),
   ChatRoomDef(
     id: 'general',
     title: 'General Chat',

@@ -12,6 +12,8 @@ class ChatRoomDef extends Equatable {
     required this.icon,
     this.iconAsset,
     this.allowImages = true,
+    this.adminOnly = false,
+    this.broadcastPush = false,
   });
 
   final String id;
@@ -24,12 +26,57 @@ class ChatRoomDef extends Equatable {
 
   final bool allowImages;
 
+  /// When true, only users with admin role may post messages in this room.
+  /// All authenticated users can still read.
+  final bool adminOnly;
+
+  /// When true, every successful admin post in this room fires an FCM push
+  /// to all registered devices via the backend broadcast endpoint.
+  /// Use for ADMIN BUYS-style real-time trade alerts.
+  final bool broadcastPush;
+
   @override
-  List<Object?> get props =>
-      <Object?>[id, title, description, icon, iconAsset, allowImages];
+  List<Object?> get props => <Object?>[
+        id,
+        title,
+        description,
+        icon,
+        iconAsset,
+        allowImages,
+        adminOnly,
+        broadcastPush,
+      ];
 }
 
 enum ChatMessageType { text, image }
+
+/// Returned by ChatRepository.sendText / pickAndSendImage so the calling
+/// screen can fire a backend broadcast (FCM push) after a successful post
+/// in admin-only + broadcastPush rooms. `cancelled` is true only when the
+/// user dismissed the image picker without choosing a file.
+class ChatSendResult {
+  const ChatSendResult({
+    required this.messageId,
+    required this.text,
+    required this.imageUrl,
+    required this.messageType,
+    this.cancelled = false,
+  });
+
+  final String messageId;
+  final String text;
+  final String? imageUrl;
+  final ChatMessageType messageType;
+  final bool cancelled;
+
+  static const ChatSendResult cancelledResult = ChatSendResult(
+    messageId: '',
+    text: '',
+    imageUrl: null,
+    messageType: ChatMessageType.text,
+    cancelled: true,
+  );
+}
 
 /// Mirror of `chat_rooms/{roomId}/messages/{id}`.
 class ChatMessage extends Equatable {

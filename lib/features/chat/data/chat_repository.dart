@@ -49,7 +49,7 @@ class ChatRepository {
 
   // -------- writes --------
 
-  Future<void> sendText({
+  Future<ChatSendResult?> sendText({
     required String roomId,
     required String roomTitle,
     required String text,
@@ -60,9 +60,10 @@ class ChatRepository {
     final User? u = _auth.currentUser;
     if (u == null) throw StateError('Not signed in.');
     final String body = text.trim();
-    if (body.isEmpty) return;
+    if (body.isEmpty) return null;
 
-    await _messagesRef(roomId).add(<String, dynamic>{
+    final DocumentReference<Map<String, dynamic>> doc =
+        await _messagesRef(roomId).add(<String, dynamic>{
       'type': 'text',
       'text': body,
       'imageUrl': '',
@@ -80,11 +81,17 @@ class ChatRepository {
       'updatedAt': FieldValue.serverTimestamp(),
     });
     await _bumpRoom(roomId: roomId, roomTitle: roomTitle, lastMessage: body);
+    return ChatSendResult(
+      messageId: doc.id,
+      text: body,
+      imageUrl: null,
+      messageType: ChatMessageType.text,
+    );
   }
 
-  /// Picks an image from the gallery and uploads it. Returns null if the user
-  /// cancelled the picker.
-  Future<bool> pickAndSendImage({
+  /// Picks an image from the gallery and uploads it. Returns
+  /// [ChatSendResult.cancelledResult] if the user cancels the picker.
+  Future<ChatSendResult> pickAndSendImage({
     required String roomId,
     required String roomTitle,
     required String caption,
@@ -99,7 +106,7 @@ class ChatRepository {
       source: ImageSource.gallery,
       imageQuality: 75,
     );
-    if (picked == null) return false;
+    if (picked == null) return ChatSendResult.cancelledResult;
 
     final String fileName =
         '${roomId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -124,7 +131,8 @@ class ChatRepository {
     final String url = await ref.getDownloadURL();
     final String trimmedCaption = caption.trim();
 
-    await _messagesRef(roomId).add(<String, dynamic>{
+    final DocumentReference<Map<String, dynamic>> doc =
+        await _messagesRef(roomId).add(<String, dynamic>{
       'type': 'image',
       'text': trimmedCaption,
       'imageUrl': url,
@@ -144,12 +152,19 @@ class ChatRepository {
 
     final String summary = trimmedCaption.isNotEmpty
         ? '📸 $trimmedCaption'
-        : (roomId == 'gains'
-            ? '📸 New gain screenshot posted'
-            : '📸 New screenshot posted');
+        : (roomId == 'admin_buys'
+            ? '🚨 New admin trade screenshot'
+            : roomId == 'gains'
+                ? '📸 New gain screenshot posted'
+                : '📸 New screenshot posted');
     await _bumpRoom(
         roomId: roomId, roomTitle: roomTitle, lastMessage: summary);
-    return true;
+    return ChatSendResult(
+      messageId: doc.id,
+      text: trimmedCaption,
+      imageUrl: url,
+      messageType: ChatMessageType.image,
+    );
   }
 
   Future<void> editMessage({

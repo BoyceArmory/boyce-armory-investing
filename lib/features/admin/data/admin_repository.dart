@@ -29,6 +29,34 @@ class AdminRepository {
     await _api.postJson('/api/admin/system/flags', body: {'pushScannerPromotes': value});
   }
 
+  // ---- Chat broadcast (ADMIN BUYS) ------------------------------------
+
+  /// Fire an FCM push to every active device for an admin chat post.
+  /// Called immediately after a successful Firestore write in an admin-only
+  /// + broadcastPush room (e.g. "admin_buys"). Backend fan-out keeps the
+  /// push under a single privileged endpoint so non-admins can't spam.
+  ///
+  /// Safe to ignore failure — the chat message is already saved in Firestore;
+  /// the broadcast is best-effort. Surface the error in admin UI but don't
+  /// block the user.
+  Future<void> broadcastChatMessage({
+    required String roomId,
+    required String roomTitle,
+    required String messageId,
+    required String text,
+    required String messageType, // "text" | "image"
+    String? imageUrl,
+  }) async {
+    await _api.postJson('/api/admin/chat-broadcast', body: {
+      'roomId': roomId,
+      'roomTitle': roomTitle,
+      'messageId': messageId,
+      'text': text,
+      'messageType': messageType,
+      if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
+    });
+  }
+
   // ---- Scanner ops ----------------------------------------------------
 
   Future<void> triggerScan({
