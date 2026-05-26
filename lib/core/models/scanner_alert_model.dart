@@ -37,6 +37,9 @@ class ScannerAlert extends Equatable {
     this.volume,
     this.dayChangePct,
     this.mode = ScannerMode.swing,
+    this.stillValid,
+    this.lastCheckedPrice,
+    this.decayReason,
   });
 
   final String id;
@@ -108,6 +111,25 @@ class ScannerAlert extends Equatable {
   /// Which scanner mode produced this signal.
   final ScannerMode mode;
 
+  /// Set by the backend decay job (`decayCheckJob`, every 5 min during
+  /// market hours). When `false`, the card has run past entry/stop, the
+  /// underlying price has extended too far, or the original snapshot
+  /// turned out to be wrong. UI should hide cards with `stillValid == false`.
+  ///
+  /// `null` means the decay job hasn't checked yet — treat as still valid.
+  final bool? stillValid;
+
+  /// Most recent price the decay job pulled when it re-checked this card.
+  /// Useful for showing "Entry $725 → Now $608" in the UI when prices drift.
+  final double? lastCheckedPrice;
+
+  /// Human-readable reason the decay job marked this card invalid. Examples:
+  ///   "extended"        — price went too far past entry, no longer entryable
+  ///   "stopped_out"     — price hit the stop, this trade would have lost
+  ///   "target_hit"      — price hit target, this trade would have won
+  ///   "snapshot_drift"  — entry price was wrong; differs > 5% from re-check
+  final String? decayReason;
+
   bool get isBullish => direction == SetupDirection.bullish;
 
   double? get riskRewardRatio {
@@ -163,6 +185,9 @@ class ScannerAlert extends Equatable {
       dayChangePct: (m['dayChangePct'] as num?)?.toDouble() ??
           (m['changePct'] as num?)?.toDouble(),
       mode: ScannerModeX.fromWire(m['mode'] as String?),
+      stillValid: m['still_valid'] is bool ? m['still_valid'] as bool : null,
+      lastCheckedPrice: (m['lastCheckedPrice'] as num?)?.toDouble(),
+      decayReason: m['decayReason'] as String?,
     );
   }
 

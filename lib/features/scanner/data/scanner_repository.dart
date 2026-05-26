@@ -20,6 +20,14 @@ class ScannerRepository {
   /// The visibility filter is defence-in-depth: the backend only writes
   /// public docs to `scanner_alerts`, but adding the filter here means the
   /// UI ignores anything that accidentally slips through.
+  ///
+  /// Decay filter: docs marked `still_valid: false` by the backend decay
+  /// job are hidden in the client. The decay job re-checks each card every
+  /// 5 minutes and invalidates ones whose price has run past entry/stop,
+  /// extended too far, or where the snapshot at scan time turned out to be
+  /// wrong (caught the META $725 vs $608 bug). Without this filter the UI
+  /// keeps showing stale or bad-data cards even after the backend knows
+  /// they're no longer actionable.
   Stream<List<ScannerAlert>> streamPublicAlerts({
     int limit = 50,
     ScannerMode? mode,
@@ -33,7 +41,9 @@ class ScannerRepository {
         .orderBy('createdAt', descending: true)
         .limit(limit)
         .snapshots()
-        .map(_mapSnapshot);
+        .map(_mapSnapshot)
+        .map((List<ScannerAlert> alerts) =>
+            alerts.where((ScannerAlert a) => a.stillValid != false).toList());
   }
 
   /// Live stream of every scanner result (admin only). Optionally filter by mode.
