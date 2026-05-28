@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/extensions/datetime_extensions.dart';
+import '../../../../core/models/enums.dart';
 import '../../../../core/models/trade_alert_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -51,9 +52,9 @@ class _HotTradeCardState extends State<HotTradeCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Align(
+          Align(
             alignment: Alignment.centerRight,
-            child: _HotEyebrow(),
+            child: _HotEyebrow(mode: a.mode),
           ),
           const SizedBox(height: 8),
           Align(
@@ -83,13 +84,22 @@ class _HotTradeCardState extends State<HotTradeCard> {
 }
 
 class _HotEyebrow extends StatelessWidget {
-  const _HotEyebrow();
+  const _HotEyebrow({this.mode});
+
+  /// Scanner mode this alert came from. When present we render a DAY / SWING /
+  /// LEAPS pill next to the "HOT TRADE" label so users see at a glance what
+  /// timeframe the setup applies to.
+  final ScannerMode? mode;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: <Widget>[
+        if (mode != null) ...<Widget>[
+          _ModePill(mode: mode!),
+          const SizedBox(width: 8),
+        ],
         const Icon(Icons.local_fire_department,
             color: AppColors.gold, size: 18),
         const SizedBox(width: 4),
@@ -103,6 +113,49 @@ class _HotEyebrow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Small gold pill rendering DAY / SWING / LEAPS so users can scan the Hot
+/// Trades feed and immediately understand the timeframe of each setup. The
+/// pill is intentionally small + bordered so it doesn't compete with the
+/// HOT TRADE eyebrow next to it.
+class _ModePill extends StatelessWidget {
+  const _ModePill({required this.mode});
+  final ScannerMode mode;
+
+  String get _label => switch (mode) {
+        ScannerMode.day => 'DAY',
+        ScannerMode.swing => 'SWING',
+        ScannerMode.leaps => 'LEAPS',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.gold.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.55)),
+      ),
+      child: Text(
+        _label,
+        style: const TextStyle(
+          color: AppColors.gold,
+          fontSize: 9.5,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.4,
+          shadows: <Shadow>[
+            Shadow(
+              color: Color(0xAA000000),
+              offset: Offset(0, 1),
+              blurRadius: 3,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

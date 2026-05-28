@@ -27,6 +27,7 @@ class TradeAlert extends Equatable {
     this.currentPrice,
     this.volume,
     this.dayChangePct,
+    this.mode,
   });
 
   final String id;
@@ -57,6 +58,11 @@ class TradeAlert extends Equatable {
 
   /// Day percent change (signed). Optional.
   final double? dayChangePct;
+
+  /// Scanner mode that produced this alert — "day", "swing", or "leaps".
+  /// Auto-merged scanner alerts carry this so the Hot Trade card can render
+  /// a DAY / SWING / LEAPS badge. Null for manual admin-created alerts.
+  final ScannerMode? mode;
 
   bool get isBullish => direction == SetupDirection.bullish;
 
@@ -89,6 +95,9 @@ class TradeAlert extends Equatable {
       volume: (m['volume'] as num?)?.toInt(),
       dayChangePct: (m['dayChangePct'] as num?)?.toDouble() ??
           (m['changePct'] as num?)?.toDouble(),
+      mode: m['mode'] is String
+          ? ScannerModeX.fromWire(m['mode'] as String)
+          : null,
     );
   }
 
@@ -116,6 +125,7 @@ class TradeAlert extends Equatable {
         currentPrice,
         volume,
         dayChangePct,
+        mode,
       ];
 }
 
