@@ -13,6 +13,7 @@ const List<ChatRoomDef> chatRooms = <ChatRoomDef>[
     description:
         'Real-time screenshots of Boyce Armory trades. Every post pushes to your phone.',
     icon: Icons.bolt,
+    iconAsset: AssetPaths.chatRoomAdminBuys,
     adminOnly: true,
     broadcastPush: true,
   ),

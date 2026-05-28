@@ -63,6 +63,7 @@ class AssetPaths {
   static const String btnLearn = 'assets/buttons/learn_button.png';
 
   // --- Chat room icons ---
+  static const String chatRoomAdminBuys = 'assets/buttons/admin_buy_button.png';
   static const String chatRoomGeneral = 'assets/buttons/general_chat.png';
   static const String chatRoomGains = 'assets/buttons/show_gains.png';
   static const String chatRoomQuestions = 'assets/buttons/questions.png';
