@@ -32,9 +32,11 @@ class HotTradeCard extends StatefulWidget {
 class _HotTradeCardState extends State<HotTradeCard> {
   late bool _expanded = widget.initiallyExpanded;
 
-  CardArt get _art => widget.alert.isBullish
-      ? CardArt.smartMoneyBull
-      : CardArt.smartMoneyBear;
+  // Hot Trades cards use the same bull_call_bg / bear_put_bg artwork as the
+  // scanner cards for visual consistency across the alert surface. The HOT
+  // eyebrow + gold glow distinguishes them from the standard scanner card.
+  CardArt get _art =>
+      widget.alert.isBullish ? CardArt.bullCall : CardArt.bearPut;
 
   @override
   Widget build(BuildContext context) {

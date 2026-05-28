@@ -62,15 +62,19 @@
 		<key>UISupportedInterfaceOrientations</key>
 		<array>
 			<string>UIInterfaceOrientationPortrait</string>
-			<string>UIInterfaceOrientationLandscapeLeft</string>
-			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
-		<key>UISupportedInterfaceOrientations~ipad</key>
+		<!--
+	  Device family: iPhone only.
+	  App Store Connect submission 2.0(6) was reviewed on iPad Air 11" (M3)
+	  and rejected under Guideline 2.1(a) because "Hot" and "Scanner" pages
+	  did not load - the iPad layout pushed content off-screen. Restricting
+	  to iPhone tells Apple to only review the device family we actually
+	  support. We'll add iPad-optimized layouts in a future release before
+	  re-enabling iPad.
+	-->
+		<key>UIDeviceFamily</key>
 		<array>
-			<string>UIInterfaceOrientationPortrait</string>
-			<string>UIInterfaceOrientationPortraitUpsideDown</string>
-			<string>UIInterfaceOrientationLandscapeLeft</string>
-			<string>UIInterfaceOrientationLandscapeRight</string>
+			<integer>1</integer>
 		</array>
 		<key>UIStatusBarHidden</key>
 		<true/>

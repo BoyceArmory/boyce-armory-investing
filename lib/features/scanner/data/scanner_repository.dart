@@ -37,13 +37,27 @@ class ScannerRepository {
     if (mode != null) {
       q = q.where('mode', isEqualTo: mode.wire);
     }
+    // We still order by createdAt at the Firestore level so the query stays
+    // efficient and the `limit` filters by most-recent. Then we re-sort the
+    // resulting page client-side by score (high → low) and fall back to
+    // createdAt (newest → oldest) when scores tie. This gives users the
+    // strongest setups at the top while keeping the live stream lightweight.
     return q
         .orderBy('createdAt', descending: true)
         .limit(limit)
         .snapshots()
         .map(_mapSnapshot)
-        .map((List<ScannerAlert> alerts) =>
-            alerts.where((ScannerAlert a) => a.stillValid != false).toList());
+        .map((List<ScannerAlert> alerts) {
+      final List<ScannerAlert> visible = alerts
+          .where((ScannerAlert a) => a.stillValid != false)
+          .toList();
+      visible.sort((ScannerAlert a, ScannerAlert b) {
+        final int scoreCmp = b.score.compareTo(a.score);
+        if (scoreCmp != 0) return scoreCmp;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+      return visible;
+    });
   }
 
   /// Live stream of every scanner result (admin only). Optionally filter by mode.

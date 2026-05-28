@@ -8,7 +8,7 @@ import '../../../../core/providers/auth_state_provider.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
-import '../../../../shared/widgets/empty_state.dart';
+import '../../../../shared/widgets/empty_alert_card.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../providers/scanner_providers.dart';
 import '../widgets/scanner_alert_card.dart';
@@ -64,27 +64,35 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         : ref.watch(publicScannerAlertsByModeProvider(mode));
   }
 
-  String _emptyTitleFor(ScannerMode? mode) {
-    if (mode == null) return 'No setups yet';
+  String _emptyEyebrowFor(ScannerMode? mode) {
+    if (mode == null) return 'NO ACTIVE SETUPS';
     return switch (mode) {
-      ScannerMode.day =>
-        'Day scanner is quiet',
-      ScannerMode.swing => 'No swing setups yet',
-      ScannerMode.leaps => 'No LEAPS candidates yet',
+      ScannerMode.day => 'DAY SCANNER QUIET',
+      ScannerMode.swing => 'SWING SCANNER QUIET',
+      ScannerMode.leaps => 'LEAPS SCANNER QUIET',
+    };
+  }
+
+  String _emptyTitleFor(ScannerMode? mode) {
+    if (mode == null) return 'No setups firing right now';
+    return switch (mode) {
+      ScannerMode.day => 'No day setups',
+      ScannerMode.swing => 'No swing setups',
+      ScannerMode.leaps => 'No LEAPS candidates',
     };
   }
 
   String _emptyMessageFor(ScannerMode? mode) {
     if (mode == null) {
-      return 'The scanner publishes here in real time. Pull to refresh.';
+      return 'The live scanner publishes A+ setups here automatically. Pull down to refresh, or check back during US market hours (9:30 AM – 4:00 PM ET).';
     }
     return switch (mode) {
       ScannerMode.day =>
-        'Day mode scans every 5 minutes between 09:30 and 13:30 ET on the top 10 tickers. Outside that window it stays quiet.',
+        'Day scanner runs every minute from 9:30 AM – 1:30 PM ET, Mon–Fri. New setups appear here as soon as they fire.',
       ScannerMode.swing =>
-        'Swing mode runs every 30 minutes during market hours on a broader large-cap universe.',
+        'Swing scanner runs every 5 minutes during US market hours on the large-cap universe. Pull down to refresh.',
       ScannerMode.leaps =>
-        'LEAPS mode runs once daily after close on long-uptrend candidates. Not a real-time alert source.',
+        'LEAPS scanner runs hourly during US market hours on long-uptrend candidates. Daily-candle setups update slowly by design.',
     };
   }
 
@@ -159,20 +167,23 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                   ),
                   data: (List<ScannerAlert> alerts) {
                     if (alerts.isEmpty) {
+                      // Right-aligned dummy card that mirrors a real scanner
+                      // card layout. Tells the user *why* the page is empty
+                      // (market hours, scanner cadence) so an empty Scanner
+                      // tab never feels broken to a reviewer or new user.
                       return ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
                         children: <Widget>[
-                          SizedBox(
-                            height: MediaQuery.sizeOf(context).height * 0.6,
-                            child: EmptyState(
-                              icon: mode == ScannerMode.day
-                                  ? Icons.bolt
-                                  : mode == ScannerMode.leaps
-                                      ? Icons.calendar_month_outlined
-                                      : Icons.radar,
-                              title: _emptyTitleFor(mode),
-                              message: _emptyMessageFor(mode),
-                            ),
+                          EmptyAlertCard(
+                            eyebrow: _emptyEyebrowFor(mode),
+                            title: _emptyTitleFor(mode),
+                            message: _emptyMessageFor(mode),
+                            icon: mode == ScannerMode.day
+                                ? Icons.bolt_outlined
+                                : mode == ScannerMode.leaps
+                                    ? Icons.calendar_month_outlined
+                                    : Icons.radar_outlined,
                           ),
                         ],
                       );

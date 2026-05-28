@@ -6,7 +6,7 @@ import '../../../../core/models/trade_alert_model.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
-import '../../../../shared/widgets/empty_state.dart';
+import '../../../../shared/widgets/empty_alert_card.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../scanner/presentation/widgets/scanner_card_skeleton.dart';
 import '../providers/alerts_providers.dart';
@@ -70,13 +70,21 @@ class HotTradesScreen extends ConsumerWidget {
               ),
               data: (List<TradeAlert> alerts) {
                 if (alerts.isEmpty) {
-                  return const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: EmptyState(
-                      icon: Icons.local_fire_department_outlined,
-                      title: 'No hot trades right now',
-                      message:
-                          "When the team promotes a setup, it'll appear here first.",
+                  // Right-aligned dummy card that matches the real Hot Trade
+                  // card layout. Apple's reviewer (submission 67feecab) flagged
+                  // the page under Guideline 2.1(a) for "did not load" when
+                  // the trade_alerts collection was empty - this card makes
+                  // an empty Hot Trades tab look intentional, not broken.
+                  return const SliverPadding(
+                    padding: EdgeInsets.fromLTRB(20, 12, 20, 32),
+                    sliver: SliverToBoxAdapter(
+                      child: EmptyAlertCard(
+                        eyebrow: 'NO HOT TRADES RIGHT NOW',
+                        title: 'No promoted setups',
+                        message:
+                            "When the scanner promotes an A+ setup or the team hand-picks a play, it'll land here first. Pull down to refresh — new alerts appear automatically during US market hours.",
+                        icon: Icons.local_fire_department_outlined,
+                      ),
                     ),
                   );
                 }

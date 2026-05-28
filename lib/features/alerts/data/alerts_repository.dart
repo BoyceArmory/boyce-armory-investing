@@ -16,7 +16,7 @@ class AlertsRepository {
     if (onlyPublic) {
       q = q.where('visibility', isEqualTo: AlertVisibility.public.wire);
     }
-    return q.snapshots().map(_mapSnapshot);
+    return q.snapshots().map(_mapSnapshot).map(_sortByConfidence);
   }
 
   Stream<List<TradeAlert>> streamHot({int limit = 25}) {
@@ -25,7 +25,22 @@ class AlertsRepository {
         .orderBy('createdAt', descending: true)
         .limit(limit)
         .snapshots()
-        .map(_mapSnapshot);
+        .map(_mapSnapshot)
+        .map(_sortByConfidence);
+  }
+
+  /// Rank alerts strongest → weakest. We still page by recency at the
+  /// Firestore layer (cheap query + a useful "freshness" floor), but users
+  /// scrolling Hot Trades expect the highest-confidence setup at the top, not
+  /// just the most recent. Ties fall back to `createdAt` newest-first.
+  List<TradeAlert> _sortByConfidence(List<TradeAlert> alerts) {
+    final List<TradeAlert> ranked = List<TradeAlert>.from(alerts);
+    ranked.sort((TradeAlert a, TradeAlert b) {
+      final int cmp = b.confidence.compareTo(a.confidence);
+      if (cmp != 0) return cmp;
+      return b.createdAt.compareTo(a.createdAt);
+    });
+    return ranked;
   }
 
   Stream<TradeAlert?> streamById(String id) {

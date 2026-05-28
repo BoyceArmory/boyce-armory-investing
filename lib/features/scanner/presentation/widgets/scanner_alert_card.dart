@@ -46,14 +46,11 @@ class ScannerAlertCard extends StatefulWidget {
 class _ScannerAlertCardState extends State<ScannerAlertCard> {
   late bool _expanded = widget.initiallyExpanded;
 
-  CardArt get _art {
-    if (widget.alert.promoted) {
-      return widget.alert.isBullish
-          ? CardArt.smartMoneyBull
-          : CardArt.smartMoneyBear;
-    }
-    return widget.alert.isBullish ? CardArt.bullCall : CardArt.bearPut;
-  }
+  // All scanner cards (promoted or not) use bull_call_bg / bear_put_bg for
+  // consistent branding. Promoted cards still get the gold accent + glow via
+  // the accentColor + glow flags on CardBackground below.
+  CardArt get _art =>
+      widget.alert.isBullish ? CardArt.bullCall : CardArt.bearPut;
 
   Color get _accent {
     if (widget.alert.promoted) return AppColors.gold;
