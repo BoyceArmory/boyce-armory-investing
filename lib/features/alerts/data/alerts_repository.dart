@@ -20,8 +20,17 @@ class AlertsRepository {
   }
 
   Stream<List<TradeAlert>> streamHot({int limit = 25}) {
+    // CRITICAL: the visibility filter MUST be present in the query, not just
+    // in the rules. Firestore evaluates security rules against the query
+    // itself - it doesn't peek at the result data first. The rule on
+    // `trade_alerts` requires non-admin reads to be constrained on
+    // visibility == 'public'. Without this `.where()` line, every non-admin
+    // user hits cloud_firestore/permission-denied on the Hot Trades page.
+    // Admins bypass via isAdmin() in the rule, which is why this bug was
+    // invisible to Jonathan and only surfaced once testers signed in.
     return _fs.tradeAlerts
         .where('isHot', isEqualTo: true)
+        .where('visibility', isEqualTo: AlertVisibility.public.wire)
         .orderBy('createdAt', descending: true)
         .limit(limit)
         .snapshots()

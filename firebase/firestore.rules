@@ -44,13 +44,20 @@ service cloud.firestore {
     // that aren't ready for public consumption.
     //
     // Writes: only admin (or backend service account, which bypasses rules).
+    // NOTE: we only enforce `visibility == 'public'` here. Hiding decayed
+    // cards (still_valid: false) happens client-side in
+    // scanner_repository.dart. We tried enforcing `still_valid != false`
+    // at the rule level too, but it blew up every non-admin Scanner tab
+    // with permission-denied: Firestore couldn't statically prove the
+    // query satisfied the != constraint, and switching the client to
+    // `isNotEqualTo: false` would silently exclude every doc missing the
+    // field, which would hide all pre-decay-job cards. The client filter
+    // alone is sufficient for UX. A user using a raw Firestore client
+    // could see decayed cards, but they're harmless and clearly labelled.
     match /scanner_alerts/{id} {
       allow read: if isSignedIn() && (
         isAdmin() ||
-        (
-          resource.data.visibility == 'public' &&
-          resource.data.still_valid != false
-        )
+        resource.data.visibility == 'public'
       );
       allow write: if isAdmin();
     }
