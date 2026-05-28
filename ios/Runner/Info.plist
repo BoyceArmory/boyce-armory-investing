@@ -59,22 +59,27 @@
 		<string>LaunchScreen</string>
 		<key>UIMainStoryboardFile</key>
 		<string>Main</string>
+		<!--
+	  Universal device family (iPhone + iPad) is REQUIRED — version 2.0(6)
+	  shipped to App Store Connect as universal, and Apple rejects upload
+	  attempts that drop a previously-supported device family
+	  (error 90101 / QA1623). The iPad layout for now is a scaled-up phone
+	  view; the demo-seed alerts + EmptyAlertCard ensure both Hot Trades
+	  and Scanner show content on iPad so reviewers never see a blank
+	  page. Future release will add iPad-optimized layouts.
+	-->
 		<key>UISupportedInterfaceOrientations</key>
 		<array>
 			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
-		<!--
-	  Device family: iPhone only.
-	  App Store Connect submission 2.0(6) was reviewed on iPad Air 11" (M3)
-	  and rejected under Guideline 2.1(a) because "Hot" and "Scanner" pages
-	  did not load - the iPad layout pushed content off-screen. Restricting
-	  to iPhone tells Apple to only review the device family we actually
-	  support. We'll add iPad-optimized layouts in a future release before
-	  re-enabling iPad.
-	-->
-		<key>UIDeviceFamily</key>
+		<key>UISupportedInterfaceOrientations~ipad</key>
 		<array>
-			<integer>1</integer>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationPortraitUpsideDown</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
 		<key>UIStatusBarHidden</key>
 		<true/>
