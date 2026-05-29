@@ -1,10 +1,23 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Required for any network I/O (REST calls to backend, Firestore, FCM). -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Required on Android 13+ (API 33+) for FCM notifications. Without this
          permission, the system silently drops notifications until the user
          manually enables them in settings. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!--
+      Strip the AD_ID permission that firebase_analytics auto-merges into the
+      final manifest. Boyce Armory shows no ads and uses no advertising-ID
+      based tracking, but Google Play Console blocks releases targeting
+      Android 13+ if the permission appears without an "uses advertising ID"
+      declaration. Removing it here keeps the Play declaration honest ("No,
+      we don't use advertising ID") and lets Play accept the AAB.
+    -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove"/>
 
     <application
         android:label="Boyce Armory"
