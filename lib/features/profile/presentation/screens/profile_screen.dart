@@ -106,6 +106,12 @@ class ProfileScreen extends ConsumerWidget {
                   label: 'Notifications',
                   onTap: () => context.go(RoutePaths.notifications),
                 ),
+                const _Divider(),
+                _ActionRow(
+                  icon: Icons.settings_outlined,
+                  label: 'Settings',
+                  onTap: () => context.go(RoutePaths.settings),
+                ),
               ]),
 
               const SizedBox(height: 14),

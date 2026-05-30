@@ -29,6 +29,26 @@ class AdminRepository {
     await _api.postJson('/api/admin/system/flags', body: {'pushScannerPromotes': value});
   }
 
+  // ---- Push diagnostics ------------------------------------------------
+  // Used by Settings → Admin → "Send test push" to verify the entire push
+  // pipeline (FCM token → APNs/FCM dispatch → device display) is working.
+
+  /// Fire a test broadcast push to every active device token. Returns the
+  /// number of devices it reached, failure count, and a warning if no tokens
+  /// are registered (which is the most common cause of "I'm not getting
+  /// pushes" — the user hasn't granted permission yet).
+  Future<Map<String, dynamic>> sendTestPush() async {
+    return _api.postJson('/api/admin/push/test');
+  }
+
+  /// List registered device tokens (no token strings — those grant push to
+  /// a device, never expose). Useful for diagnosing "I'm not getting
+  /// pushes" — if your uid doesn't appear in the list, your token never
+  /// registered with the backend.
+  Future<Map<String, dynamic>> listDeviceTokens() async {
+    return _api.getJson('/api/admin/push/devices');
+  }
+
   // ---- Chat broadcast (ADMIN BUYS) ------------------------------------
 
   /// Fire an FCM push to every active device for an admin chat post.

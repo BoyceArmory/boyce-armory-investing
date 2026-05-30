@@ -16,6 +16,8 @@ class RoutePaths {
   /// Premarket watchlist — top movers ranked at 9:25 AM ET by the backend
   /// premarket-scan job. Same card format as Hot Trades.
   static const String premarket = '/premarket';
+  /// Settings — notification toggles, disclaimer, about, admin tools.
+  static const String settings = '/settings';
   static const String trades = '/trades';
   static const String performance = '/performance';
   static const String lessons = '/lessons';
