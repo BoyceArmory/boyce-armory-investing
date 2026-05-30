@@ -49,6 +49,24 @@ class AdminRepository {
     return _api.getJson('/api/admin/push/devices');
   }
 
+  /// @everyone broadcast — fires an arbitrary push to every active device.
+  /// When `force` is true, bypasses user-side announcement mute (use only
+  /// for genuine emergencies — app outage, market early close, etc).
+  /// Returns delivery counts.
+  Future<Map<String, dynamic>> announce({
+    required String title,
+    required String body,
+    String? deepLink,
+    bool force = false,
+  }) async {
+    return _api.postJson('/api/admin/push/announce', body: {
+      'title': title,
+      'body': body,
+      if (deepLink != null) 'deepLink': deepLink,
+      if (force) 'force': true,
+    });
+  }
+
   // ---- Per-user notification preferences -------------------------------
   // These hit /api/users/me/notifications which is mounted under requireAuth
   // (NOT requireAdmin) — every signed-in user can read + update their own

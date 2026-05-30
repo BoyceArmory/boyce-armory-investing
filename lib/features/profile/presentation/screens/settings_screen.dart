@@ -158,6 +158,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               testPushResult: _testPushResult,
               onSendTestPush: _sendTestPush,
               onViewDevices: _viewDevices,
+              onAnnounce: _openAnnounceDialog,
             ),
           ],
         ],
@@ -186,6 +187,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       setState(() => _testPushResult = 'Failed: $e');
     } finally {
       if (mounted) setState(() => _sendingTestPush = false);
+    }
+  }
+
+  Future<void> _openAnnounceDialog() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => const _AnnouncementDialog(),
+    );
+    if (result == null) return;
+    try {
+      final repo = ref.read(adminRepositoryProvider);
+      final res = await repo.announce(
+        title: result['title'] as String,
+        body: result['body'] as String,
+        force: result['force'] as bool? ?? false,
+      );
+      if (!mounted) return;
+      final sent = (res['sent'] as num?)?.toInt() ?? 0;
+      final devices = (res['deviceCount'] as num?)?.toInt() ?? 0;
+      final warning = res['warning'] as String?;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(warning ?? 'Announcement sent to $sent/$devices devices.'),
+          backgroundColor:
+              warning != null ? AppColors.bearish : AppColors.bullish,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Announce failed: $e')),
+      );
     }
   }
 
@@ -543,17 +576,34 @@ class _AdminSection extends StatelessWidget {
     required this.testPushResult,
     required this.onSendTestPush,
     required this.onViewDevices,
+    required this.onAnnounce,
   });
   final bool sendingTestPush;
   final String? testPushResult;
   final VoidCallback onSendTestPush;
   final VoidCallback onViewDevices;
+  final VoidCallback onAnnounce;
 
   @override
   Widget build(BuildContext context) {
     return _Card(
       child: Column(
         children: <Widget>[
+          ListTile(
+            title: const Text('@everyone announcement',
+                style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14)),
+            subtitle: const Text(
+                'Fire a broadcast push to every active device. Use sparingly — this is the "needs to reach everyone right now" channel.',
+                style: TextStyle(
+                    color: AppColors.textSecondary, fontSize: 12)),
+            trailing: const Icon(Icons.campaign_outlined,
+                color: AppColors.gold, size: 22),
+            onTap: onAnnounce,
+          ),
+          const Divider(color: AppColors.steel, height: 1),
           ListTile(
             title: const Text('Send test push',
                 style: TextStyle(
@@ -608,6 +658,110 @@ class _AdminSection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ---- @everyone announcement dialog ---------------------------------------
+
+class _AnnouncementDialog extends StatefulWidget {
+  const _AnnouncementDialog();
+  @override
+  State<_AnnouncementDialog> createState() => _AnnouncementDialogState();
+}
+
+class _AnnouncementDialogState extends State<_AnnouncementDialog> {
+  final _titleCtrl = TextEditingController();
+  final _bodyCtrl = TextEditingController();
+  bool _force = false;
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _bodyCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.graphite,
+      title: const Text('@everyone announcement',
+          style: TextStyle(color: AppColors.textPrimary)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          TextField(
+            controller: _titleCtrl,
+            maxLength: 60,
+            style: const TextStyle(color: AppColors.textPrimary),
+            decoration: const InputDecoration(
+              labelText: 'Title',
+              labelStyle: TextStyle(color: AppColors.textTertiary),
+              hintText: 'e.g. Market closed early today',
+              hintStyle: TextStyle(color: AppColors.textTertiary),
+            ),
+            autofocus: true,
+          ),
+          TextField(
+            controller: _bodyCtrl,
+            maxLines: 3,
+            maxLength: 200,
+            style: const TextStyle(color: AppColors.textPrimary),
+            decoration: const InputDecoration(
+              labelText: 'Body',
+              labelStyle: TextStyle(color: AppColors.textTertiary),
+              hintText: 'Short message shown on the lock screen',
+              hintStyle: TextStyle(color: AppColors.textTertiary),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            value: _force,
+            onChanged: (v) => setState(() => _force = v),
+            activeColor: AppColors.bearish,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Force delivery (bypass user mutes)',
+                style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700)),
+            subtitle: const Text(
+                'Use only for emergencies. Reaches users who have muted announcements.',
+                style: TextStyle(color: AppColors.textTertiary, fontSize: 11)),
+          ),
+        ],
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.send, size: 16),
+          label: Text(_force ? 'Send (force)' : 'Send'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _force ? AppColors.bearish : AppColors.gold,
+            foregroundColor: AppColors.obsidian,
+          ),
+          onPressed: () {
+            final title = _titleCtrl.text.trim();
+            final body = _bodyCtrl.text.trim();
+            if (title.isEmpty || body.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Title and body required')),
+              );
+              return;
+            }
+            Navigator.of(context).pop(<String, dynamic>{
+              'title': title,
+              'body': body,
+              'force': _force,
+            });
+          },
+        ),
+      ],
     );
   }
 }
