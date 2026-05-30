@@ -1,21 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../../core/models/trade_alert_model.dart';
+import '../../../../core/constants/asset_paths.dart';
 import '../../../../core/models/user_model.dart';
 import '../../../../core/providers/auth_state_provider.dart';
-import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/constants/asset_paths.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
-import '../../../../shared/widgets/empty_state.dart';
-import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/screen_header.dart';
-import '../../../../shared/widgets/section_header.dart';
 import '../../../alerts/presentation/providers/alerts_providers.dart';
-import '../../../alerts/presentation/widgets/hot_trade_card.dart';
-import '../../../scanner/presentation/widgets/scanner_card_skeleton.dart';
 import '../providers/home_providers.dart';
 import '../widgets/desk_performance_card.dart';
 import '../widgets/event_timeline_card.dart';
@@ -28,26 +20,28 @@ import '../widgets/vix_gauge_card.dart';
 
 /// Customer home screen.
 ///
-/// Layout (preserves the original premium design — header art, brand palette,
-/// FadeSlideIn animations — and layers new market context widgets in):
+/// Layout (May 2026 rework):
 ///
-///   1. ScreenHeader  (your brand header art, unchanged)
-///   2. MarketPulseCard  (SPY/QQQ/DIA pulse, unchanged)
-///   3. MarketRegimeStrip  ⟵ NEW: regime badge + open/close countdown
-///   4. VixGaugeCard       ⟵ NEW: volatility gauge with color zones
-///   5. SectorHeatmapCard  ⟵ NEW: 11-sector GICS grid
-///   6. QuickActionGrid   (your existing nav grid, unchanged)
-///   7. Hot Trades preview (unchanged)
+///   1. ScreenHeader              (brand header art)
+///   2. DeskPerformanceCard       (track record card — MOVED UP, was below)
+///   3. MarketPulseCard           (SPY / QQQ / DIA strip)
+///   4. QuickActionGrid           (Hot Trades / Scanner / Premarket / Chat /
+///                                 Learn — MOVED ABOVE the heatmap)
+///   5. MarketRegimeStrip         (regime + countdown)
+///   6. VixGaugeCard              (volatility gauge)
+///   7. SectorHeatmapCard         (11-sector grid)
+///   8. EventTimelineCard         (today's economic events)
+///   9. NewsTickerCard            (market news)
 ///
-/// Scanner preview removed by request — scanners now live only on the
-/// Scanner tab.
+/// Hot Trades preview section is intentionally REMOVED from home; the
+/// dedicated Hot Trades tab + quick-action button cover that need without
+/// duplicating content on home.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AsyncValue<AppUser?> userAsync = ref.watch(appUserProvider);
-    final AsyncValue<List<TradeAlert>> hotAsync = ref.watch(hotAlertsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.obsidian,
@@ -64,7 +58,7 @@ class HomeScreen extends ConsumerWidget {
             const ScreenHeader(asset: AssetPaths.headerHome),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
-              child: _HomeBody(userAsync: userAsync, hotAsync: hotAsync),
+              child: _HomeBody(userAsync: userAsync),
             ),
           ],
         ),
@@ -74,111 +68,69 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _HomeBody extends ConsumerWidget {
-  const _HomeBody({required this.userAsync, required this.hotAsync});
+  const _HomeBody({required this.userAsync});
 
   final AsyncValue<AppUser?> userAsync;
-  final AsyncValue<List<TradeAlert>> hotAsync;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        // ---- Existing: Market Pulse ----
+        // ---- Desk performance — MOVED to top of feed per May 2026 rework
+        const FadeSlideIn(
+          child: DeskPerformanceCard(),
+        ),
+        const SizedBox(height: 14),
+
+        // ---- Market pulse (SPY / QQQ / DIA)
         FadeSlideIn(
+          delay: const Duration(milliseconds: 60),
           child: MarketPulseCard(
             displayName: userAsync.asData?.value?.displayName,
           ),
         ),
-        const SizedBox(height: 14),
-
-        // ---- New layer 1: regime badge + market countdown ----
-        const FadeSlideIn(
-          delay: Duration(milliseconds: 60),
-          child: MarketRegimeStrip(),
-        ),
-        const SizedBox(height: 12),
-
-        // ---- New layer 2: VIX gauge ----
-        const FadeSlideIn(
-          delay: Duration(milliseconds: 100),
-          child: VixGaugeCard(),
-        ),
-        const SizedBox(height: 12),
-
-        // ---- New layer 3: Sector heatmap ----
-        const FadeSlideIn(
-          delay: Duration(milliseconds: 140),
-          child: SectorHeatmapCard(),
-        ),
-        const SizedBox(height: 12),
-
-        // ---- New layer 4: Desk performance ----
-        const FadeSlideIn(
-          delay: Duration(milliseconds: 160),
-          child: DeskPerformanceCard(),
-        ),
-        const SizedBox(height: 12),
-
-        // ---- New layer 5: Today's economic events ----
-        const FadeSlideIn(
-          delay: Duration(milliseconds: 180),
-          child: EventTimelineCard(),
-        ),
-        const SizedBox(height: 12),
-
-        // ---- New layer 6: Market news ----
-        const FadeSlideIn(
-          delay: Duration(milliseconds: 200),
-          child: NewsTickerCard(),
-        ),
         const SizedBox(height: 18),
 
-        // ---- Existing: Quick actions ----
+        // ---- Quick actions — MOVED above the heatmap per May 2026 rework
         const FadeSlideIn(
-          delay: Duration(milliseconds: 220),
+          delay: Duration(milliseconds: 100),
           child: QuickActionGrid(),
         ),
         const SizedBox(height: 22),
 
-        // ---- Existing: Hot trades preview ----
-        FadeSlideIn(
-          delay: const Duration(milliseconds: 260),
-          child: SectionHeader(
-            eyebrow: 'Curated',
-            title: 'Hot Trades',
-            action: TextButton(
-              onPressed: () => context.go(RoutePaths.hotTrades),
-              child: const Text('View all'),
-            ),
-          ),
+        // ---- Regime strip
+        const FadeSlideIn(
+          delay: Duration(milliseconds: 140),
+          child: MarketRegimeStrip(),
         ),
         const SizedBox(height: 12),
-        hotAsync.when(
-          loading: () => const ScannerCardSkeleton(),
-          error: (Object e, _) => ErrorState(
-            message: 'Could not load hot trades.',
-            details: e.toString(),
-            onRetry: () => ref.invalidate(hotAlertsProvider),
-          ),
-          data: (List<TradeAlert> alerts) {
-            if (alerts.isEmpty) {
-              return const EmptyState(
-                icon: Icons.local_fire_department_outlined,
-                title: 'No hot trades right now',
-                message: 'Check back soon - the desk publishes here first.',
-              );
-            }
-            final TradeAlert featured = alerts.first;
-            return FadeSlideIn(
-              delay: const Duration(milliseconds: 260),
-              child: HotTradeCard(
-                alert: featured,
-                onOpenDetail: () =>
-                    context.go(RoutePaths.alertDetailFor(featured.id)),
-              ),
-            );
-          },
+
+        // ---- VIX gauge
+        const FadeSlideIn(
+          delay: Duration(milliseconds: 180),
+          child: VixGaugeCard(),
+        ),
+        const SizedBox(height: 12),
+
+        // ---- Sector heatmap
+        const FadeSlideIn(
+          delay: Duration(milliseconds: 220),
+          child: SectorHeatmapCard(),
+        ),
+        const SizedBox(height: 12),
+
+        // ---- Today's economic events
+        const FadeSlideIn(
+          delay: Duration(milliseconds: 260),
+          child: EventTimelineCard(),
+        ),
+        const SizedBox(height: 12),
+
+        // ---- Market news
+        const FadeSlideIn(
+          delay: Duration(milliseconds: 300),
+          child: NewsTickerCard(),
         ),
       ],
     );

@@ -12,23 +12,29 @@ extension SetupDirectionX on SetupDirection {
   }
 }
 
-enum SetupGrade { aPlus, a, b, watch }
+enum SetupGrade { aPlus, a, b, c, watch }
 
 extension SetupGradeX on SetupGrade {
   String get wire => switch (this) {
         SetupGrade.aPlus => 'A+',
         SetupGrade.a => 'A',
         SetupGrade.b => 'B',
+        SetupGrade.c => 'C',
         SetupGrade.watch => 'WATCH',
       };
 
   String get label => wire;
+
+  /// True for grades that should display the "WATCH" tag — currently C and
+  /// WATCH itself. The tag tells users "monitor this; don't trade it yet."
+  bool get isWatchTier => this == SetupGrade.c || this == SetupGrade.watch;
 
   static SetupGrade fromWire(String? s) {
     return switch (s) {
       'A+' => SetupGrade.aPlus,
       'A' => SetupGrade.a,
       'B' => SetupGrade.b,
+      'C' => SetupGrade.c,
       _ => SetupGrade.watch,
     };
   }

@@ -52,6 +52,21 @@ class AlertsRepository {
     return ranked;
   }
 
+  /// Premarket watchlist — cards published by the backend premarket-scan job
+  /// at 9:25 AM ET. Filtered by `kind == "premarket_watchlist"` so they don't
+  /// clutter the Hot Trades feed but are easy to surface on the dedicated
+  /// Premarket screen. Sorted by score (high → low) like the other lists.
+  Stream<List<TradeAlert>> streamPremarket({int limit = 30}) {
+    return _fs.tradeAlerts
+        .where('kind', isEqualTo: 'premarket_watchlist')
+        .where('visibility', isEqualTo: AlertVisibility.public.wire)
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map(_mapSnapshot)
+        .map(_sortByConfidence);
+  }
+
   Stream<TradeAlert?> streamById(String id) {
     return _fs.tradeAlerts.doc(id).snapshots().map((s) {
       if (!s.exists || s.data() == null) return null;

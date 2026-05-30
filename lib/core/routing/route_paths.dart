@@ -13,6 +13,9 @@ class RoutePaths {
   static const String home = '/home';
   static const String hotTrades = '/hot-trades';
   static const String scanner = '/scanner';
+  /// Premarket watchlist — top movers ranked at 9:25 AM ET by the backend
+  /// premarket-scan job. Same card format as Hot Trades.
+  static const String premarket = '/premarket';
   static const String trades = '/trades';
   static const String performance = '/performance';
   static const String lessons = '/lessons';

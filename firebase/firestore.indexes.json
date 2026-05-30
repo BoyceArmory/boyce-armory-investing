@@ -59,6 +59,15 @@
       ]
     },
     {
+      "collectionGroup": "trade_alerts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "kind", "order": "ASCENDING" },
+        { "fieldPath": "visibility", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "device_tokens",
       "queryScope": "COLLECTION",
       "fields": [

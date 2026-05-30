@@ -23,6 +23,15 @@ final StreamProvider<List<TradeAlert>> hotAlertsProvider =
   (Ref ref) => ref.watch(alertsRepositoryProvider).streamHot(),
 );
 
+/// Premarket watchlist — populated by the backend premarket-scan job
+/// at 9:25 AM ET each weekday. Empty outside premarket window until the
+/// next morning's run, which is when the EmptyAlertCard explains the
+/// scanner schedule.
+final StreamProvider<List<TradeAlert>> premarketAlertsProvider =
+    StreamProvider<List<TradeAlert>>(
+  (Ref ref) => ref.watch(alertsRepositoryProvider).streamPremarket(),
+);
+
 /// Single alert by id, used by the detail screen.
 final StreamProviderFamily<TradeAlert?, String> alertByIdProvider =
     StreamProvider.family<TradeAlert?, String>(

@@ -8,6 +8,7 @@ import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
 import '../../features/support/presentation/screens/support_ticket_screen.dart';
 import '../../features/alerts/presentation/screens/alert_detail_screen.dart';
 import '../../features/alerts/presentation/screens/hot_trades_screen.dart';
+import '../../features/alerts/presentation/screens/premarket_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/sign_in_screen.dart';
 import '../../features/auth/presentation/screens/sign_up_screen.dart';
@@ -154,6 +155,11 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             path: RoutePaths.hotTrades,
             builder: (BuildContext c, GoRouterState s) =>
                 const HotTradesScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.premarket,
+            builder: (BuildContext c, GoRouterState s) =>
+                const PremarketScreen(),
           ),
           GoRoute(
             path: RoutePaths.scanner,

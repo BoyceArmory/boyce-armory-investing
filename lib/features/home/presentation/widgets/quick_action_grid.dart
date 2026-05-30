@@ -5,29 +5,55 @@ import '../../../../core/constants/asset_paths.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 
-/// 2x2 grid of large, image-driven quick-action buttons.
-///
-/// Each tile uses a full button artwork asset (the design ships pre-styled
-/// buttons rather than icon+label, so this widget just renders the image
-/// inside a tappable card with subtle press feedback).
+/// 3-column quick-action grid (5 tiles: Hot Trades, Scanner, Premarket,
+/// Chat, Learn). Premarket joined the row in May 2026 so the morning
+/// watchlist is one tap from home. Premarket has no shipped artwork yet, so
+/// its tile falls back to an icon + label until the PNG is added to
+/// assets/buttons/premarket_button.png.
 class QuickActionGrid extends StatelessWidget {
   const QuickActionGrid({super.key});
 
   @override
   Widget build(BuildContext context) {
     final List<_Action> actions = const <_Action>[
-      _Action(asset: AssetPaths.btnHotTrades, path: RoutePaths.hotTrades),
-      _Action(asset: AssetPaths.btnScanner, path: RoutePaths.scanner),
-      _Action(asset: AssetPaths.btnChat, path: RoutePaths.chat),
-      _Action(asset: AssetPaths.btnLearn, path: RoutePaths.lessons),
+      _Action(
+        asset: AssetPaths.btnHotTrades,
+        path: RoutePaths.hotTrades,
+        fallbackLabel: 'Hot Trades',
+        fallbackIcon: Icons.local_fire_department,
+      ),
+      _Action(
+        asset: AssetPaths.btnScanner,
+        path: RoutePaths.scanner,
+        fallbackLabel: 'Scanner',
+        fallbackIcon: Icons.radar,
+      ),
+      _Action(
+        asset: AssetPaths.btnPremarket,
+        path: RoutePaths.premarket,
+        fallbackLabel: 'Premarket',
+        fallbackIcon: Icons.wb_twilight,
+      ),
+      _Action(
+        asset: AssetPaths.btnChat,
+        path: RoutePaths.chat,
+        fallbackLabel: 'Chat',
+        fallbackIcon: Icons.forum_outlined,
+      ),
+      _Action(
+        asset: AssetPaths.btnLearn,
+        path: RoutePaths.lessons,
+        fallbackLabel: 'Learn',
+        fallbackIcon: Icons.school_outlined,
+      ),
     ];
     return GridView.count(
-      crossAxisCount: 2,
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
+      crossAxisCount: 3,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.6,
+      childAspectRatio: 1.25,
       children: <Widget>[
         for (final _Action a in actions) _ActionTile(action: a),
       ],
@@ -41,7 +67,7 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final BorderRadius radius = BorderRadius.circular(18);
+    final BorderRadius radius = BorderRadius.circular(16);
     return Material(
       color: Colors.transparent,
       borderRadius: radius,
@@ -61,8 +87,9 @@ class _ActionTile extends StatelessWidget {
             child: Image.asset(
               action.asset,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const ColoredBox(
-                color: AppColors.graphite,
+              errorBuilder: (_, __, ___) => _FallbackTile(
+                label: action.fallbackLabel,
+                icon: action.fallbackIcon,
               ),
             ),
           ),
@@ -72,8 +99,48 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
+/// Rendered for any quick-action whose PNG asset is missing. Keeps the grid
+/// usable while final art is being commissioned (used by Premarket today).
+class _FallbackTile extends StatelessWidget {
+  const _FallbackTile({required this.label, required this.icon});
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: AppColors.graphite),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, color: AppColors.gold, size: 28),
+            const SizedBox(height: 6),
+            Text(
+              label.toUpperCase(),
+              style: const TextStyle(
+                color: AppColors.gold,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Action {
-  const _Action({required this.asset, required this.path});
+  const _Action({
+    required this.asset,
+    required this.path,
+    required this.fallbackLabel,
+    required this.fallbackIcon,
+  });
   final String asset;
   final String path;
+  final String fallbackLabel;
+  final IconData fallbackIcon;
 }
