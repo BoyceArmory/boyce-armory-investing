@@ -30,9 +30,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _notifAdminBuys = true;
   bool _notifPremarket = true;
   bool _notifRecap = true;
+  bool _loadingPrefs = true;
 
   bool _sendingTestPush = false;
   String? _testPushResult;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPrefs());
+  }
+
+  Future<void> _loadPrefs() async {
+    try {
+      final repo = ref.read(adminRepositoryProvider);
+      final prefs = await repo.fetchMyNotificationPrefs();
+      if (!mounted) return;
+      setState(() {
+        _notifMaster = (prefs['master'] as bool?) ?? true;
+        _notifScanner = (prefs['scanner'] as bool?) ?? true;
+        _notifHot = (prefs['hot'] as bool?) ?? true;
+        _notifAdminBuys = (prefs['adminBuys'] as bool?) ?? true;
+        _notifPremarket = (prefs['premarket'] as bool?) ?? true;
+        _notifRecap = (prefs['recap'] as bool?) ?? true;
+        _loadingPrefs = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingPrefs = false);
+    }
+  }
+
+  Future<void> _savePref(String key, bool value) async {
+    try {
+      final repo = ref.read(adminRepositoryProvider);
+      await repo.updateMyNotificationPrefs({key: value});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +96,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: <Widget>[
           _SectionHeader('NOTIFICATIONS'),
+          if (_loadingPrefs) ...<Widget>[
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppColors.gold),
+                ),
+              ),
+            ),
+          ] else
           _NotificationSection(
             master: _notifMaster,
             scanner: _notifScanner,
@@ -64,12 +116,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             adminBuys: _notifAdminBuys,
             premarket: _notifPremarket,
             recap: _notifRecap,
-            onMaster: (v) => setState(() => _notifMaster = v),
-            onScanner: (v) => setState(() => _notifScanner = v),
-            onHot: (v) => setState(() => _notifHot = v),
-            onAdminBuys: (v) => setState(() => _notifAdminBuys = v),
-            onPremarket: (v) => setState(() => _notifPremarket = v),
-            onRecap: (v) => setState(() => _notifRecap = v),
+            onMaster: (v) {
+              setState(() => _notifMaster = v);
+              _savePref('master', v);
+            },
+            onScanner: (v) {
+              setState(() => _notifScanner = v);
+              _savePref('scanner', v);
+            },
+            onHot: (v) {
+              setState(() => _notifHot = v);
+              _savePref('hot', v);
+            },
+            onAdminBuys: (v) {
+              setState(() => _notifAdminBuys = v);
+              _savePref('adminBuys', v);
+            },
+            onPremarket: (v) {
+              setState(() => _notifPremarket = v);
+              _savePref('premarket', v);
+            },
+            onRecap: (v) {
+              setState(() => _notifRecap = v);
+              _savePref('recap', v);
+            },
           ),
           const SizedBox(height: 18),
 

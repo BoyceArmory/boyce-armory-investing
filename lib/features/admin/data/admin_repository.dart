@@ -49,6 +49,20 @@ class AdminRepository {
     return _api.getJson('/api/admin/push/devices');
   }
 
+  // ---- Per-user notification preferences -------------------------------
+  // These hit /api/users/me/notifications which is mounted under requireAuth
+  // (NOT requireAdmin) — every signed-in user can read + update their own
+  // toggles. Lives on the admin repo because that's where the api client is
+  // wired; a 2.1.1 refactor will lift these into a dedicated profile repo.
+
+  Future<Map<String, dynamic>> fetchMyNotificationPrefs() async {
+    return _api.getJson('/api/users/me/notifications');
+  }
+
+  Future<void> updateMyNotificationPrefs(Map<String, bool> prefs) async {
+    await _api.patchJson('/api/users/me/notifications', body: prefs);
+  }
+
   // ---- Chat broadcast (ADMIN BUYS) ------------------------------------
 
   /// Fire an FCM push to every active device for an admin chat post.

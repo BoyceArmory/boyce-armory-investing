@@ -61,10 +61,8 @@ class AssetPaths {
   static const String btnScanner = 'assets/buttons/scanner_button.png';
   static const String btnChat = 'assets/buttons/chat_button.png';
   static const String btnLearn = 'assets/buttons/learn_button.png';
-  /// Premarket Watchlist quick-action button. If the PNG asset hasn't been
-  /// created yet, the tile falls back to an icon + label (see
-  /// QuickActionGrid._ActionTile.errorBuilder).
-  static const String btnPremarket = 'assets/buttons/premarket_button.png';
+  /// Premarket Watchlist quick-action button. Created May 30 2026.
+  static const String btnPremarket = 'assets/buttons/watch_list_pre.png';
 
   // --- Chat room icons ---
   static const String chatRoomAdminBuys = 'assets/buttons/admin_buy_button.png';
