@@ -11,6 +11,7 @@ import '../../features/alerts/presentation/screens/hot_trades_screen.dart';
 import '../../features/alerts/presentation/screens/premarket_screen.dart';
 import '../../features/profile/presentation/screens/settings_screen.dart';
 import '../../features/home/presentation/screens/news_screen.dart';
+import '../../features/admin/presentation/screens/backtest_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/sign_in_screen.dart';
 import '../../features/auth/presentation/screens/sign_up_screen.dart';
@@ -172,6 +173,11 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             path: RoutePaths.news,
             builder: (BuildContext c, GoRouterState s) =>
                 const NewsScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.backtest,
+            builder: (BuildContext c, GoRouterState s) =>
+                const BacktestScreen(),
           ),
           GoRoute(
             path: RoutePaths.scanner,

@@ -663,6 +663,21 @@ class _AdminSection extends StatelessWidget {
                 const Icon(Icons.dashboard_outlined, color: AppColors.gold),
             onTap: () => context.go(RoutePaths.adminDashboard),
           ),
+          const Divider(color: AppColors.steel, height: 1),
+          ListTile(
+            title: const Text('View backtest results',
+                style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14)),
+            subtitle: const Text(
+                'Per-detector measured edge (win rate, expectancy, regime breakdown) from the backtest engine',
+                style: TextStyle(
+                    color: AppColors.textSecondary, fontSize: 12)),
+            trailing:
+                const Icon(Icons.analytics_outlined, color: AppColors.gold),
+            onTap: () => context.go(RoutePaths.backtest),
+          ),
         ],
       ),
     );

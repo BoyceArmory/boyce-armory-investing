@@ -21,6 +21,9 @@ class RoutePaths {
   /// Market news — full list of headlines moved off the home feed into
   /// its own route to keep the home page lean.
   static const String news = '/news';
+  /// Backtest results viewer — admin-only screen showing per-detector
+  /// measured edge from the backtest engine.
+  static const String backtest = '/backtest';
   static const String trades = '/trades';
   static const String performance = '/performance';
   static const String lessons = '/lessons';

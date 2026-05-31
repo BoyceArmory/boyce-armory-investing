@@ -49,6 +49,25 @@ class AdminRepository {
     return _api.getJson('/api/admin/push/devices');
   }
 
+  // ---- Backtest viewer ------------------------------------------------
+  // Read setup_stats rows (per (mode, kind) with regime breakdown). Used
+  // by the Backtest screen to show measured per-detector edge.
+
+  Future<List<Map<String, dynamic>>> fetchBacktestStats() async {
+    final j = await _api.getJson('/api/admin/backtest/stats');
+    final rows = (j['rows'] as List?) ?? const <dynamic>[];
+    return rows
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
+  }
+
+  /// Trigger a fresh backtest run on the backend. Returns the summary
+  /// counts (tickers scanned, groups, total trades) so the UI can show a
+  /// "computed N trades across M kinds" confirmation.
+  Future<Map<String, dynamic>> runBacktest() async {
+    return _api.postJson('/api/admin/backtest/run', body: {});
+  }
+
   /// @everyone broadcast — fires an arbitrary push to every active device.
   /// When `force` is true, bypasses user-side announcement mute (use only
   /// for genuine emergencies — app outage, market early close, etc).
