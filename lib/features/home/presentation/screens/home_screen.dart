@@ -6,6 +6,7 @@ import '../../../../core/models/user_model.dart';
 import '../../../../core/providers/auth_state_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
+import '../../../../shared/widgets/responsive_container.dart';
 import '../../../../shared/widgets/screen_header.dart';
 import '../../../alerts/presentation/providers/alerts_providers.dart';
 import '../providers/home_providers.dart';
@@ -56,9 +57,11 @@ class HomeScreen extends ConsumerWidget {
           padding: EdgeInsets.zero,
           children: <Widget>[
             const ScreenHeader(asset: AssetPaths.headerHome),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
-              child: _HomeBody(userAsync: userAsync),
+            ResponsiveContainer(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+                child: _HomeBody(userAsync: userAsync),
+              ),
             ),
           ],
         ),

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/providers/auth_state_provider.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/responsive_container.dart';
 import '../../../admin/presentation/providers/admin_providers.dart';
 
 /// Settings screen. Notification toggles, About, Risk Disclaimer, and
@@ -92,7 +93,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           onPressed: () => context.go(RoutePaths.profile),
         ),
       ),
-      body: ListView(
+      body: ResponsiveContainer(
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: <Widget>[
           _SectionHeader('NOTIFICATIONS'),
@@ -162,6 +164,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ],
         ],
+      ),
       ),
     );
   }

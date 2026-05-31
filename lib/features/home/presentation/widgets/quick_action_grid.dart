@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/asset_paths.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/responsive_container.dart';
 
 /// 3-column quick-action grid (5 tiles: Hot Trades, Scanner, Premarket,
 /// Chat, Learn). Premarket joined the row in May 2026 so the morning
@@ -47,8 +48,10 @@ class QuickActionGrid extends StatelessWidget {
         fallbackIcon: Icons.school_outlined,
       ),
     ];
+    // iPad / large screens fit all 5 tiles in one row, phone stays at 3-col.
+    final int cols = isWideScreen(context) ? 5 : 3;
     return GridView.count(
-      crossAxisCount: 3,
+      crossAxisCount: cols,
       mainAxisSpacing: 10,
       crossAxisSpacing: 10,
       shrinkWrap: true,

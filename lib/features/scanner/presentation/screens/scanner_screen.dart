@@ -10,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
 import '../../../../shared/widgets/empty_alert_card.dart';
 import '../../../../shared/widgets/error_state.dart';
+import '../../../../shared/widgets/responsive_container.dart';
 import '../providers/scanner_providers.dart';
 import '../widgets/scanner_alert_card.dart';
 import '../widgets/scanner_card_skeleton.dart';
@@ -106,7 +107,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       backgroundColor: AppColors.obsidian,
       body: SafeArea(
         bottom: false,
-        child: Column(
+        child: ResponsiveContainer(
+          child: Column(
           children: <Widget>[
             // Branded image header — replaces the old SectionHeader.
             Padding(
@@ -210,6 +212,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
               ),
             ),
           ],
+          ),
         ),
       ),
     );

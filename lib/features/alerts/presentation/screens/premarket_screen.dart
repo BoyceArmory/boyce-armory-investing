@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
 import '../../../../shared/widgets/empty_alert_card.dart';
 import '../../../../shared/widgets/error_state.dart';
+import '../../../../shared/widgets/responsive_container.dart';
 import '../../../scanner/presentation/widgets/scanner_card_skeleton.dart';
 import '../providers/alerts_providers.dart';
 import '../widgets/hot_trade_card.dart';
@@ -38,8 +39,9 @@ class PremarketScreen extends ConsumerWidget {
         color: AppColors.gold,
         backgroundColor: AppColors.graphite,
         onRefresh: () async => ref.invalidate(premarketAlertsProvider),
-        child: CustomScrollView(
-          slivers: <Widget>[
+        child: ResponsiveContainer(
+          child: CustomScrollView(
+            slivers: <Widget>[
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
               sliver: SliverToBoxAdapter(
@@ -140,6 +142,7 @@ class PremarketScreen extends ConsumerWidget {
               },
             ),
           ],
+          ),
         ),
       ),
     );
