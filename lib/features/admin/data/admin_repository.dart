@@ -75,6 +75,18 @@ class AdminRepository {
     await _api.postJson('/api/admin/recap/run', body: {});
   }
 
+  // ---- Detector control panel ----------------------------------------
+
+  /// Replace the runtime disabled-detector list. Pass an empty list to
+  /// re-enable everything. Keys are `${mode}_${kind}` (e.g. "swing_breakout").
+  Future<List<String>> setDisabledDetectors(List<String> keys) async {
+    final r = await _api.postJson('/api/admin/detectors', body: {
+      'disabledDetectors': keys,
+    });
+    final out = (r['disabledDetectors'] as List?) ?? const <dynamic>[];
+    return out.map((e) => e.toString()).toList(growable: false);
+  }
+
   // ---- Backtest viewer ------------------------------------------------
   // Read setup_stats rows (per (mode, kind) with regime breakdown). Used
   // by the Backtest screen to show measured per-detector edge.
