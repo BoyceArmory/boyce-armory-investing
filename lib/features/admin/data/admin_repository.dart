@@ -49,6 +49,32 @@ class AdminRepository {
     return _api.getJson('/api/admin/push/devices');
   }
 
+  // ---- Job triggers (Jobs tab) ----------------------------------------
+
+  /// Wipe stale scanner_alerts + trade_alerts (preserves demos). Same
+  /// logic as the daily 9:31 AM reset, on demand.
+  Future<Map<String, dynamic>> wipeStale() async {
+    return _api.postJson('/api/admin/alerts/wipe-stale');
+  }
+
+  /// Insert 3 demo trade_alerts so reviewers / new users always see content.
+  Future<Map<String, dynamic>> seedDemoAlerts() async {
+    return _api.postJson('/api/admin/alerts/seed-demo', body: {});
+  }
+
+  /// Remove the 3 demo seeds. Pass when scanner has enough real signals
+  /// that the demos are no longer needed.
+  Future<Map<String, dynamic>> clearDemoAlerts() async {
+    return _api.postJson('/api/admin/alerts/seed-demo', body: {'clear': true});
+  }
+
+  /// Trigger the daily recap aggregation manually. Daily cron runs this at
+  /// 5 PM ET; this button is for "I just bulk-imported trades and want the
+  /// performance widget to reflect them right now."
+  Future<void> triggerDailyRecap() async {
+    await _api.postJson('/api/admin/recap/run', body: {});
+  }
+
   // ---- Backtest viewer ------------------------------------------------
   // Read setup_stats rows (per (mode, kind) with regime breakdown). Used
   // by the Backtest screen to show measured per-detector edge.
