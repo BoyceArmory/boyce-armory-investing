@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/asset_paths.dart';
@@ -78,7 +79,10 @@ class _ActionTile extends StatelessWidget {
         borderRadius: radius,
         splashColor: AppColors.gold.withValues(alpha: 0.10),
         highlightColor: AppColors.gold.withValues(alpha: 0.05),
-        onTap: () => context.go(action.path),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          context.go(action.path);
+        },
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: radius,

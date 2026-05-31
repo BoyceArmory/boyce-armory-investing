@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
+import '../../../../shared/widgets/risk_calculator_sheet.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
@@ -35,6 +36,26 @@ class AlertDetailScreen extends ConsumerWidget {
           onPressed: () =>
               context.canPop() ? context.pop() : context.go('/hot-trades'),
         ),
+        actions: <Widget>[
+          IconButton(
+            tooltip: 'Risk calculator',
+            icon: const Icon(Icons.calculate_outlined),
+            onPressed: () async {
+              final a = ref.read(alertByIdProvider(alertId)).asData?.value;
+              if (a == null) return;
+              await showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => RiskCalculatorSheet(
+                  symbol: a.symbol,
+                  entry: a.entry,
+                  stop: a.stop,
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: async.when(
         loading: () => const LoadingIndicator(label: 'Loading alert'),

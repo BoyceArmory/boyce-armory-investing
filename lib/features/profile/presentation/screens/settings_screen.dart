@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -170,6 +171,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _sendTestPush() async {
+    HapticFeedback.mediumImpact();
     setState(() {
       _sendingTestPush = true;
       _testPushResult = null;
@@ -194,11 +196,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _openAnnounceDialog() async {
+    HapticFeedback.mediumImpact();
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => const _AnnouncementDialog(),
     );
     if (result == null) return;
+    HapticFeedback.heavyImpact();
     try {
       final repo = ref.read(adminRepositoryProvider);
       final res = await repo.announce(

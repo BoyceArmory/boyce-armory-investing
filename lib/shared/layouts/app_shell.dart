@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -93,6 +94,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               backgroundColor: AppColors.graphite,
               selectedIndex: selected,
               onDestinationSelected: (int i) {
+                HapticFeedback.selectionClick();
                 if (i < _customerTabs.length) {
                   context.go(_customerTabs[i].path);
                 } else if (isAdmin) {
@@ -152,6 +154,7 @@ class _AppShellState extends ConsumerState<AppShell> {
         child: NavigationBar(
           selectedIndex: selected,
           onDestinationSelected: (int i) {
+            HapticFeedback.selectionClick();
             context.go(_customerTabs[i].path);
           },
           destinations: <NavigationDestination>[
