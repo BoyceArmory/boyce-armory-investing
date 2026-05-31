@@ -142,6 +142,28 @@ class SetupEducation {
             'tried, sellers overwhelmed them. Confirmation on the next bar '
             'closing below the star low.',
 
+    // -------------------- Compression / coiled-spring family (May 2026) ----
+    'nr7_compression_long':
+        'NR7 = today\'s range is the narrowest of the last 7 sessions. '
+            'Combined with stacked EMAs and price holding the 20EMA, this is '
+            'a coiled spring in an uptrend. The breakout from compression '
+            'tends to be cleaner than chasing a stock already running. Stop '
+            'below the NR7 low.',
+    'nr7_compression_short':
+        'Mirror in a downtrend: narrowest bar in 7 sessions with EMAs '
+            'stacked down and price capped at the 20EMA. The break of the '
+            'NR7 low triggers the directional move; stop above the NR7 '
+            'high.',
+    'inside_bar_at_resistance':
+        'Inside bar within 1% of the 20-bar high with price above the '
+            '20EMA. Coiled at resistance — volatility contraction followed '
+            'by an expansion through prior highs. Entry on break of '
+            'yesterday\'s high, stop below the inside bar low.',
+    'inside_bar_at_support':
+        'Mirror at the 20-bar low: inside bar within 1% of recent lows '
+            'with price under the 20EMA. The break of yesterday\'s low '
+            'triggers; stop above the inside bar high.',
+
     // -------------------- Generic fallbacks --------------------
     'support_bounce':
         'Buyers tend to defend price levels they have defended before. '
