@@ -18,6 +18,9 @@ class RoutePaths {
   static const String premarket = '/premarket';
   /// Settings — notification toggles, disclaimer, about, admin tools.
   static const String settings = '/settings';
+  /// Market news — full list of headlines moved off the home feed into
+  /// its own route to keep the home page lean.
+  static const String news = '/news';
   static const String trades = '/trades';
   static const String performance = '/performance';
   static const String lessons = '/lessons';

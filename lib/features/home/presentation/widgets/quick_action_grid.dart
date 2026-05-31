@@ -48,9 +48,16 @@ class QuickActionGrid extends StatelessWidget {
         fallbackLabel: 'Learn',
         fallbackIcon: Icons.school_outlined,
       ),
+      _Action(
+        asset: AssetPaths.btnNews,
+        path: RoutePaths.news,
+        fallbackLabel: 'News',
+        fallbackIcon: Icons.article_outlined,
+      ),
     ];
-    // iPad / large screens fit all 5 tiles in one row, phone stays at 3-col.
-    final int cols = isWideScreen(context) ? 5 : 3;
+    // 6 tiles: phone gets a clean 3x2 grid (2 rows of 3). iPad gets one
+    // horizontal row of all 6 buttons.
+    final int cols = isWideScreen(context) ? 6 : 3;
     return GridView.count(
       crossAxisCount: cols,
       mainAxisSpacing: 10,

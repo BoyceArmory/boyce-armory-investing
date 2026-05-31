@@ -14,7 +14,6 @@ import '../widgets/desk_performance_card.dart';
 import '../widgets/event_timeline_card.dart';
 import '../widgets/market_pulse_card.dart';
 import '../widgets/market_regime_strip.dart';
-import '../widgets/news_ticker_card.dart';
 import '../widgets/quick_action_grid.dart';
 import '../widgets/sector_heatmap_card.dart';
 import '../widgets/vix_gauge_card.dart';
@@ -128,13 +127,10 @@ class _HomeBody extends ConsumerWidget {
           delay: Duration(milliseconds: 260),
           child: EventTimelineCard(),
         ),
-        const SizedBox(height: 12),
-
-        // ---- Market news
-        const FadeSlideIn(
-          delay: Duration(milliseconds: 300),
-          child: NewsTickerCard(),
-        ),
+        // News widget moved to its own /news route — accessible via the
+        // "News" tile in the Quick Action grid above. Keeps home feed lean
+        // and resolves the cut-off bug on shorter phones where the news
+        // banner-overlay layout was forcing 560pt minimum height.
       ],
     );
   }
