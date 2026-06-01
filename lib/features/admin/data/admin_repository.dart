@@ -167,6 +167,15 @@ class AdminRepository {
     await _api.patchJson('/api/users/me/notifications', body: prefs);
   }
 
+  /// Update advanced (non-boolean) preferences in one call. Supports the
+  /// scannerMinGrade enum string, the nested scannerModes object, and the
+  /// nested quietHours object. Pass only the fields you want to change —
+  /// the backend merges into existing prefs.
+  Future<void> updateMyNotificationPrefsAdvanced(
+      Map<String, dynamic> patch) async {
+    await _api.patchJson('/api/users/me/notifications', body: patch);
+  }
+
   /// In-app notification center feed. Returns the last 50 broadcast pushes
   /// (audience='all'). Each item carries the original deepLink so taps can
   /// reuse the existing FCM tap handler. Today every push is a broadcast;

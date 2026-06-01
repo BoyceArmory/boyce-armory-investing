@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -9,17 +10,71 @@ import '../../../../shared/widgets/section_header.dart';
 import '../../../admin/data/admin_repository.dart';
 import '../../../admin/presentation/providers/admin_providers.dart';
 
+/// Shared-preferences key for the user's last-selected channel filter on
+/// the inbox. Persists across launches so they don't have to re-select
+/// "Hot Trades only" every time. Use 'all' for "no filter".
+const String _kInboxFilterPref = 'notifications.inboxFilter';
+
 /// In-app notification center. Shows the last 50 broadcast pushes the user
 /// could have received, with the same deeplink each push had originally so
 /// taps reuse the existing FCM tap handler.
 ///
-/// Lives at `/notifications`. Tap from the home page (bell icon) or from
-/// any push that the user dismissed but later wants to find again.
-class NotificationsScreen extends ConsumerWidget {
+/// May 2026 update: per-channel filter chips at the top let the user
+/// narrow to Hot Trades / Scanner / Chat / Recap / etc. Filter is a pure
+/// client-side cut on the already-loaded list — no extra API calls.
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  String _filter = 'all';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFilterPref();
+  }
+
+  Future<void> _loadFilterPref() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final v = prefs.getString(_kInboxFilterPref);
+      if (v != null && mounted) setState(() => _filter = v);
+    } catch (_) {
+      // ignore — default to 'all'
+    }
+  }
+
+  Future<void> _persistFilter(String value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kInboxFilterPref, value);
+    } catch (_) {/* ignore */}
+  }
+
+  void _setFilter(String value) {
+    setState(() => _filter = value);
+    _persistFilter(value);
+  }
+
+  /// Channel chip definitions. Ordered by likely-frequency so the most
+  /// used filters are leftmost.
+  static const List<_ChipDef> _chips = <_ChipDef>[
+    _ChipDef('all', 'All', null),
+    _ChipDef('hot', 'Hot', AppColors.bearish),
+    _ChipDef('scanner', 'Scanner', AppColors.gold),
+    _ChipDef('chat', 'Chat', AppColors.info),
+    _ChipDef('premarket', 'Premarket', AppColors.warning),
+    _ChipDef('recap', 'Recap', AppColors.bullish),
+    _ChipDef('announcement', 'Announce', AppColors.warning),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
     final AsyncValue<List<Map<String, dynamic>>> async =
         ref.watch(notificationHistoryProvider);
     return Scaffold(
@@ -33,6 +88,12 @@ class NotificationsScreen extends ConsumerWidget {
                 eyebrow: 'Inbox',
                 title: 'Notifications',
               ),
+            ),
+            _ChannelFilterStrip(
+              chips: _chips,
+              active: _filter,
+              onSelect: _setFilter,
+              counts: _countByChannel(async.asData?.value ?? const []),
             ),
             Expanded(
               child: RefreshIndicator(
@@ -53,16 +114,25 @@ class NotificationsScreen extends ConsumerWidget {
                         ref.invalidate(notificationHistoryProvider),
                   ),
                   data: (items) {
-                    if (items.isEmpty) {
+                    final filtered = _filter == 'all'
+                        ? items
+                        : items
+                            .where((m) => (m['channel'] ?? '') == _filter)
+                            .toList(growable: false);
+                    if (filtered.isEmpty) {
+                      final isFiltered = _filter != 'all';
                       return ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        children: const <Widget>[
-                          SizedBox(height: 60),
+                        children: <Widget>[
+                          const SizedBox(height: 60),
                           EmptyState(
                             icon: Icons.notifications_none,
-                            title: 'No notifications yet',
-                            message:
-                                'Push alerts, scanner publishes, and recaps will appear here.',
+                            title: isFiltered
+                                ? 'No ${_chipLabelFor(_filter)} notifications'
+                                : 'No notifications yet',
+                            message: isFiltered
+                                ? 'Try a different channel filter, or pull down to refresh.'
+                                : 'Push alerts, scanner publishes, and recaps will appear here.',
                           ),
                         ],
                       );
@@ -70,11 +140,11 @@ class NotificationsScreen extends ConsumerWidget {
                     return ListView.separated(
                       padding:
                           const EdgeInsets.fromLTRB(16, 4, 16, 32),
-                      itemCount: items.length,
+                      itemCount: filtered.length,
                       separatorBuilder: (_, __) =>
                           const SizedBox(height: 8),
                       itemBuilder: (_, i) => _NotificationRow(
-                        item: PushHistoryItem.fromMap(items[i]),
+                        item: PushHistoryItem.fromMap(filtered[i]),
                       ),
                     );
                   },
@@ -82,6 +152,127 @@ class NotificationsScreen extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Tally pushes per-channel so the chip header can show a count badge
+  /// (e.g. "Hot · 7"). Pure client-side from the already-fetched list.
+  Map<String, int> _countByChannel(List<Map<String, dynamic>> items) {
+    final out = <String, int>{'all': items.length};
+    for (final m in items) {
+      final c = (m['channel'] ?? '').toString();
+      if (c.isEmpty) continue;
+      out[c] = (out[c] ?? 0) + 1;
+    }
+    return out;
+  }
+
+  String _chipLabelFor(String key) {
+    for (final c in _chips) {
+      if (c.key == key) return c.label;
+    }
+    return key;
+  }
+}
+
+class _ChipDef {
+  const _ChipDef(this.key, this.label, this.tone);
+  final String key;
+  final String label;
+  /// null on the "All" chip; otherwise the channel's identity color.
+  final Color? tone;
+}
+
+class _ChannelFilterStrip extends StatelessWidget {
+  const _ChannelFilterStrip({
+    required this.chips,
+    required this.active,
+    required this.onSelect,
+    required this.counts,
+  });
+  final List<_ChipDef> chips;
+  final String active;
+  final ValueChanged<String> onSelect;
+  final Map<String, int> counts;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+      child: SizedBox(
+        height: 32,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: chips.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 6),
+          itemBuilder: (_, i) {
+            final c = chips[i];
+            final isActive = c.key == active;
+            final count = counts[c.key] ?? 0;
+            final tone = c.tone ?? AppColors.gold;
+            return Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => onSelect(c.key),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? tone.withValues(alpha: 0.16)
+                        : AppColors.graphite,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isActive
+                          ? tone.withValues(alpha: 0.7)
+                          : AppColors.steel,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        c.label,
+                        style: TextStyle(
+                          color: isActive ? tone : AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                      if (count > 0) ...<Widget>[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? tone.withValues(alpha: 0.25)
+                                : AppColors.steel,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: TextStyle(
+                              color: isActive
+                                  ? tone
+                                  : AppColors.textTertiary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

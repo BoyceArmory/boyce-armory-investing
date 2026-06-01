@@ -33,6 +33,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _notifPremarket = true;
   bool _notifRecap = true;
   bool _loadingPrefs = true;
+  // Advanced prefs
+  String _scannerMinGrade = 'all';
+  bool _modeDay = true;
+  bool _modeSwing = true;
+  bool _modeLeaps = true;
+  bool _quietEnabled = false;
+  int _quietStart = 22;
+  int _quietEnd = 6;
 
   bool _sendingTestPush = false;
   String? _testPushResult;
@@ -48,6 +56,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final repo = ref.read(adminRepositoryProvider);
       final prefs = await repo.fetchMyNotificationPrefs();
       if (!mounted) return;
+      final modes = (prefs['scannerModes'] as Map?) ?? const {};
+      final quiet = (prefs['quietHours'] as Map?) ?? const {};
       setState(() {
         _notifMaster = (prefs['master'] as bool?) ?? true;
         _notifScanner = (prefs['scanner'] as bool?) ?? true;
@@ -55,6 +65,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _notifAdminBuys = (prefs['adminBuys'] as bool?) ?? true;
         _notifPremarket = (prefs['premarket'] as bool?) ?? true;
         _notifRecap = (prefs['recap'] as bool?) ?? true;
+        _scannerMinGrade =
+            (prefs['scannerMinGrade'] as String?) ?? 'all';
+        _modeDay = (modes['day'] as bool?) ?? true;
+        _modeSwing = (modes['swing'] as bool?) ?? true;
+        _modeLeaps = (modes['leaps'] as bool?) ?? true;
+        _quietEnabled = (quiet['enabled'] as bool?) ?? false;
+        _quietStart = (quiet['startHour'] as num?)?.toInt() ?? 22;
+        _quietEnd = (quiet['endHour'] as num?)?.toInt() ?? 6;
         _loadingPrefs = false;
       });
     } catch (_) {
@@ -66,6 +84,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       final repo = ref.read(adminRepositoryProvider);
       await repo.updateMyNotificationPrefs({key: value});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    }
+  }
+
+  /// Save an advanced (non-boolean) preference. Single key/value patch —
+  /// backend merges. Used by the min-grade enum, per-mode toggles, and
+  /// the quiet-hours sub-fields.
+  Future<void> _saveAdvanced(Map<String, dynamic> patch) async {
+    try {
+      final repo = ref.read(adminRepositoryProvider);
+      await repo.updateMyNotificationPrefsAdvanced(patch);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -142,6 +176,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onRecap: (v) {
               setState(() => _notifRecap = v);
               _savePref('recap', v);
+            },
+          ),
+          const SizedBox(height: 18),
+
+          _SectionHeader('ADVANCED FILTERS'),
+          _AdvancedNotificationsSection(
+            scannerOn: _notifScanner && _notifMaster,
+            minGrade: _scannerMinGrade,
+            modeDay: _modeDay,
+            modeSwing: _modeSwing,
+            modeLeaps: _modeLeaps,
+            quietEnabled: _quietEnabled,
+            quietStart: _quietStart,
+            quietEnd: _quietEnd,
+            onMinGrade: (v) {
+              setState(() => _scannerMinGrade = v);
+              _saveAdvanced({'scannerMinGrade': v});
+            },
+            onMode: (mode, v) {
+              setState(() {
+                if (mode == 'day') _modeDay = v;
+                if (mode == 'swing') _modeSwing = v;
+                if (mode == 'leaps') _modeLeaps = v;
+              });
+              _saveAdvanced({
+                'scannerModes': {mode: v}
+              });
+            },
+            onQuietEnabled: (v) {
+              setState(() => _quietEnabled = v);
+              _saveAdvanced({
+                'quietHours': {'enabled': v}
+              });
+            },
+            onQuietStart: (h) {
+              setState(() => _quietStart = h);
+              _saveAdvanced({
+                'quietHours': {'startHour': h}
+              });
+            },
+            onQuietEnd: (h) {
+              setState(() => _quietEnd = h);
+              _saveAdvanced({
+                'quietHours': {'endHour': h}
+              });
             },
           ),
           const SizedBox(height: 18),
@@ -803,4 +882,300 @@ class _AnnouncementDialogState extends State<_AnnouncementDialog> {
       ],
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Advanced notification filters — min grade, per-mode scanner toggles,
+// quiet-hours window. Lives below the main on/off switches in Settings.
+// All controls write through to /api/users/me/notifications via the same
+// updateMyNotificationPrefsAdvanced flow.
+// ---------------------------------------------------------------------------
+
+class _AdvancedNotificationsSection extends StatelessWidget {
+  const _AdvancedNotificationsSection({
+    required this.scannerOn,
+    required this.minGrade,
+    required this.modeDay,
+    required this.modeSwing,
+    required this.modeLeaps,
+    required this.quietEnabled,
+    required this.quietStart,
+    required this.quietEnd,
+    required this.onMinGrade,
+    required this.onMode,
+    required this.onQuietEnabled,
+    required this.onQuietStart,
+    required this.onQuietEnd,
+  });
+
+  /// Disables the grade + mode subgroup when the master Scanner switch is off.
+  final bool scannerOn;
+  final String minGrade;
+  final bool modeDay;
+  final bool modeSwing;
+  final bool modeLeaps;
+  final bool quietEnabled;
+  final int quietStart;
+  final int quietEnd;
+  final ValueChanged<String> onMinGrade;
+  final void Function(String mode, bool value) onMode;
+  final ValueChanged<bool> onQuietEnabled;
+  final ValueChanged<int> onQuietStart;
+  final ValueChanged<int> onQuietEnd;
+
+  static const List<String> _grades = <String>['all', 'B', 'B+', 'A', 'A+'];
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          // ---- Min grade ------------------------------------------------
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Text(
+              'SCANNER MIN GRADE',
+              style: TextStyle(
+                color: scannerOn ? AppColors.gold : AppColors.textTertiary,
+                fontSize: 10,
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Text(
+              'Drop pushes for any scanner alert below this grade.',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _grades.map((g) {
+                final isActive = g == minGrade;
+                return InkWell(
+                  onTap: scannerOn ? () => onMinGrade(g) : null,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? AppColors.gold.withValues(alpha: 0.16)
+                          : AppColors.obsidian,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isActive
+                            ? AppColors.gold.withValues(alpha: 0.6)
+                            : AppColors.steel,
+                      ),
+                    ),
+                    child: Text(
+                      g == 'all' ? 'All' : g,
+                      style: TextStyle(
+                        color: scannerOn
+                            ? (isActive
+                                ? AppColors.gold
+                                : AppColors.textSecondary)
+                            : AppColors.textTertiary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(growable: false),
+            ),
+          ),
+          const Divider(color: AppColors.steel, height: 1),
+          // ---- Per-mode toggles -----------------------------------------
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Text(
+              'SCANNER MODES',
+              style: TextStyle(
+                color: AppColors.gold,
+                fontSize: 10,
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Text(
+              'Which scanner modes can push to your phone.',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          _Tile(
+            title: 'Day setups',
+            subtitle: 'Intraday signals (1m-15m timeframe)',
+            value: modeDay && scannerOn,
+            onChanged: scannerOn ? (v) => onMode('day', v) : null,
+          ),
+          const Divider(color: AppColors.steel, height: 1),
+          _Tile(
+            title: 'Swing setups',
+            subtitle: 'Multi-day positions (daily timeframe)',
+            value: modeSwing && scannerOn,
+            onChanged: scannerOn ? (v) => onMode('swing', v) : null,
+          ),
+          const Divider(color: AppColors.steel, height: 1),
+          _Tile(
+            title: 'LEAPS setups',
+            subtitle: 'Long-dated weekly thesis trades',
+            value: modeLeaps && scannerOn,
+            onChanged: scannerOn ? (v) => onMode('leaps', v) : null,
+          ),
+          const Divider(color: AppColors.steel, height: 1),
+          // ---- Quiet hours ----------------------------------------------
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Text(
+              'QUIET HOURS',
+              style: TextStyle(
+                color: AppColors.gold,
+                fontSize: 10,
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Text(
+              'Suppress pushes during these hours (your local ET).',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          _Tile(
+            title: 'Enable quiet hours',
+            subtitle: quietEnabled
+                ? 'Active ${_fmtHour(quietStart)} → ${_fmtHour(quietEnd)}'
+                : 'Currently off — all approved pushes ring through',
+            value: quietEnabled,
+            onChanged: onQuietEnabled,
+          ),
+          if (quietEnabled) ...<Widget>[
+            const Divider(color: AppColors.steel, height: 1),
+            Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _HourPicker(
+                      label: 'Start',
+                      hour: quietStart,
+                      onChanged: onQuietStart,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _HourPicker(
+                      label: 'End',
+                      hour: quietEnd,
+                      onChanged: onQuietEnd,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HourPicker extends StatelessWidget {
+  const _HourPicker({
+    required this.label,
+    required this.hour,
+    required this.onChanged,
+  });
+  final String label;
+  final int hour;
+  final ValueChanged<int> onChanged;
+
+  Future<void> _open(BuildContext context) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: hour, minute: 0),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.gold,
+            surface: AppColors.graphite,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      onChanged(picked.hour);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => _open(context),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        decoration: BoxDecoration(
+          color: AppColors.obsidian,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.steel),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              label.toUpperCase(),
+              style: const TextStyle(
+                color: AppColors.textTertiary,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _fmtHour(hour),
+              style: const TextStyle(
+                color: AppColors.gold,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _fmtHour(int h) {
+  if (h == 0) return '12:00 AM';
+  if (h < 12) return '${h.toString().padLeft(2, "0")}:00 AM';
+  if (h == 12) return '12:00 PM';
+  return '${(h - 12).toString().padLeft(2, "0")}:00 PM';
 }
