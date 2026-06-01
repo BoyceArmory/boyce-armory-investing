@@ -44,6 +44,37 @@ class _PushTabState extends ConsumerState<PushTab> {
     }
   }
 
+  /// Flatten the device roster to CSV and copy to clipboard. Use this when
+  /// triaging "I'm not getting pushes" — paste into a spreadsheet to filter
+  /// by uid, platform, or active status.
+  Future<void> _copyRosterCsv() async {
+    final rows = (_devices?['rows'] as List?) ?? const <dynamic>[];
+    if (rows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No devices to export.')),
+      );
+      return;
+    }
+    final buf = StringBuffer('uid,platform,active,id,updatedAt\n');
+    for (final r in rows.whereType<Map<String, dynamic>>()) {
+      final uid = (r['uid'] ?? '').toString().replaceAll(',', '');
+      final platform = (r['platform'] ?? '').toString().replaceAll(',', '');
+      final active = r['active'] == true ? 'true' : 'false';
+      final id = (r['id'] ?? '').toString().replaceAll(',', '');
+      final updatedAt =
+          (r['updatedAt'] ?? '').toString().replaceAll(',', '');
+      buf.writeln('$uid,$platform,$active,$id,$updatedAt');
+    }
+    await Clipboard.setData(ClipboardData(text: buf.toString()));
+    if (!mounted) return;
+    HapticFeedback.selectionClick();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text('Copied ${rows.length} rows as CSV to clipboard.'),
+          backgroundColor: AppColors.bullish),
+    );
+  }
+
   Future<void> _sendTest() async {
     HapticFeedback.mediumImpact();
     setState(() {
@@ -187,14 +218,36 @@ class _PushTabState extends ConsumerState<PushTab> {
         const SizedBox(height: 18),
 
         // ---- Device roster ----
-        const Text(
-          'REGISTERED DEVICES',
-          style: TextStyle(
-            color: AppColors.gold,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.6,
-          ),
+        Row(
+          children: <Widget>[
+            const Expanded(
+              child: Text(
+                'REGISTERED DEVICES',
+                style: TextStyle(
+                  color: AppColors.gold,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.6,
+                ),
+              ),
+            ),
+            if (rows.isNotEmpty)
+              TextButton.icon(
+                onPressed: _copyRosterCsv,
+                icon: const Icon(Icons.copy_all,
+                    size: 14, color: AppColors.gold),
+                label: const Text('Copy CSV',
+                    style: TextStyle(
+                        color: AppColors.gold,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800)),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 8),
         if (rows.isEmpty)

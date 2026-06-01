@@ -75,6 +75,19 @@ class AdminRepository {
     await _api.postJson('/api/admin/recap/run', body: {});
   }
 
+  // ---- Bulk trade import ---------------------------------------------
+
+  /// Upload a batch of closed trades. Expected body shape:
+  ///   { "trades": [ { symbol, direction, entry, exit, qty?, closedAt,
+  ///                   idempotencyKey?, contract? }, ... ] }
+  /// Returns { received, imported, skipped, errors }. Idempotency keys
+  /// keep repeat-fires safe.
+  Future<Map<String, dynamic>> bulkImportTrades(
+      List<Map<String, dynamic>> trades) async {
+    return _api.postJson('/api/admin/trades/bulk-import',
+        body: {'trades': trades});
+  }
+
   // ---- Detector control panel ----------------------------------------
 
   /// Replace the runtime disabled-detector list. Pass an empty list to
@@ -85,6 +98,14 @@ class AdminRepository {
     });
     final out = (r['disabledDetectors'] as List?) ?? const <dynamic>[];
     return out.map((e) => e.toString()).toList(growable: false);
+  }
+
+  /// Manually trigger the weekly auto-demote sweep. Same logic as the cron:
+  /// any (mode,kind) with expectancyPct <= -0.1 AND totalTrades >= 100 gets
+  /// merged into the disabled list. Returns { scanned, flagged, newlyDisabled,
+  /// alreadyDisabled }.
+  Future<Map<String, dynamic>> runAutoDemote() async {
+    return _api.postJson('/api/admin/detectors/auto-demote', body: {});
   }
 
   // ---- Backtest viewer ------------------------------------------------
@@ -104,6 +125,14 @@ class AdminRepository {
   /// "computed N trades across M kinds" confirmation.
   Future<Map<String, dynamic>> runBacktest() async {
     return _api.postJson('/api/admin/backtest/run', body: {});
+  }
+
+  /// Lightweight backtest health summary for the Status tab. Returns
+  /// totalDetectors / profitable / losing / topEdgePct / lastRunAt /
+  /// autoDemoteCandidates so the at-a-glance card doesn't need to load the
+  /// full setup_stats roster.
+  Future<Map<String, dynamic>> fetchBacktestHealth() async {
+    return _api.getJson('/api/admin/backtest/health');
   }
 
   /// @everyone broadcast — fires an arbitrary push to every active device.

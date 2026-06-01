@@ -89,3 +89,11 @@ final FutureProvider<List<Map<String, dynamic>>> auditLogsProvider =
     FutureProvider<List<Map<String, dynamic>>>((Ref ref) {
   return ref.watch(adminRepositoryProvider).listAuditLogs(limit: 100);
 });
+
+/// Backtest health summary — refreshes when the user pulls down on the Status
+/// tab (invalidated alongside systemStatusStreamProvider). Cheap call, no
+/// auto-dispose so the Status tab can re-show it instantly on tab switch.
+final FutureProvider<Map<String, dynamic>> backtestHealthProvider =
+    FutureProvider<Map<String, dynamic>>((Ref ref) {
+  return ref.watch(adminRepositoryProvider).fetchBacktestHealth();
+});

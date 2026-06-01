@@ -19,6 +19,7 @@ class StatusTab extends ConsumerWidget {
       backgroundColor: AppColors.graphite,
       onRefresh: () async {
         ref.invalidate(systemStatusStreamProvider);
+        ref.invalidate(backtestHealthProvider);
         await ref.read(systemStatusStreamProvider.future);
       },
       child: async.when(
@@ -80,6 +81,8 @@ class _StatusBody extends StatelessWidget {
         _ServiceCard(service: status.service, scheduler: status.scheduler),
         const SizedBox(height: 12),
         _ScannerCard(scanner: status.scanner),
+        const SizedBox(height: 12),
+        const _BacktestHealthCard(),
         const SizedBox(height: 12),
         _ApiCard(api: status.api),
         const SizedBox(height: 12),
@@ -629,4 +632,205 @@ String _formatUptime(int sec) {
   final d = sec ~/ 86400;
   final h = (sec % 86400) ~/ 3600;
   return '${d}d ${h}h';
+}
+
+// ---------------------------------------------------------------------------
+// Backtest health card — measures how the scanner's edge looked over a
+// 2y walk-forward backtest. Drives the auto-demote candidate count and the
+// "is our edge actually positive" gut-check on Status.
+// ---------------------------------------------------------------------------
+
+class _BacktestHealthCard extends ConsumerWidget {
+  const _BacktestHealthCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(backtestHealthProvider);
+    return async.when(
+      loading: () => _Card(
+        icon: Icons.science_outlined,
+        title: 'Backtest health',
+        statusColor: AppColors.textTertiary,
+        statusLabel: '…',
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 6),
+          child: Text('Loading…',
+              style: TextStyle(color: AppColors.textTertiary, fontSize: 12)),
+        ),
+      ),
+      error: (e, _) => _Card(
+        icon: Icons.science_outlined,
+        title: 'Backtest health',
+        statusColor: AppColors.bearish,
+        statusLabel: 'ERR',
+        child: Text(
+          e.toString(),
+          style: const TextStyle(color: AppColors.bearish, fontSize: 11),
+        ),
+      ),
+      data: (j) {
+        final total = (j['totalDetectors'] as num?)?.toInt() ?? 0;
+        final profitable = (j['profitable'] as num?)?.toInt() ?? 0;
+        final losing = (j['losing'] as num?)?.toInt() ?? 0;
+        final neutral = (j['neutral'] as num?)?.toInt() ?? 0;
+        final trades = (j['totalTrades'] as num?)?.toInt() ?? 0;
+        final topEdge = (j['topEdgePct'] as num?)?.toDouble();
+        final topKind = (j['topKind'] as String?) ?? '—';
+        final worstEdge = (j['worstEdgePct'] as num?)?.toDouble();
+        final worstKind = (j['worstKind'] as String?) ?? '—';
+        final lastRunAt = j['lastRunAt'] as String?;
+        final demoteCount =
+            (j['autoDemoteCandidates'] as num?)?.toInt() ?? 0;
+
+        // Header pill: PROFITABLE if profitable >= losing AND we have data;
+        // NEEDS WORK if losing > profitable; NO DATA if no rows.
+        Color color;
+        String label;
+        if (total == 0) {
+          color = AppColors.textTertiary;
+          label = 'NO DATA';
+        } else if (profitable >= losing) {
+          color = AppColors.bullish;
+          label = 'PROFITABLE';
+        } else {
+          color = AppColors.warning;
+          label = 'MIXED';
+        }
+
+        return _Card(
+          icon: Icons.science_outlined,
+          title: 'Backtest health',
+          statusColor: color,
+          statusLabel: label,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _BtMetric(
+                      value: '$profitable',
+                      label: 'profitable',
+                      color: AppColors.bullish,
+                    ),
+                  ),
+                  Expanded(
+                    child: _BtMetric(
+                      value: '$losing',
+                      label: 'losing',
+                      color: AppColors.bearish,
+                    ),
+                  ),
+                  Expanded(
+                    child: _BtMetric(
+                      value: '$neutral',
+                      label: 'neutral',
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  Expanded(
+                    child: _BtMetric(
+                      value: '$total',
+                      label: 'total',
+                      color: AppColors.gold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Container(height: 1, color: AppColors.steel),
+              const SizedBox(height: 10),
+              _KeyValRow(
+                k: 'Top edge',
+                v: topEdge == null
+                    ? '—'
+                    : '${topEdge >= 0 ? "+" : ""}${topEdge.toStringAsFixed(2)}%  ($topKind)',
+              ),
+              _KeyValRow(
+                k: 'Worst edge',
+                v: worstEdge == null
+                    ? '—'
+                    : '${worstEdge >= 0 ? "+" : ""}${worstEdge.toStringAsFixed(2)}%  ($worstKind)',
+              ),
+              _KeyValRow(k: 'Trades sampled', v: '$trades'),
+              _KeyValRow(
+                k: 'Last run',
+                v: lastRunAt == null
+                    ? 'never'
+                    : _agoShort(DateTime.tryParse(lastRunAt) ??
+                        DateTime.now()),
+              ),
+              if (demoteCount > 0) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.08),
+                    border: Border.all(
+                        color: AppColors.warning.withValues(alpha: 0.5)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      const Icon(Icons.warning_amber_rounded,
+                          color: AppColors.warning, size: 14),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '$demoteCount detector${demoteCount == 1 ? "" : "s"} '
+                          'flagged for auto-demote (expectancy ≤ -0.1%, n ≥ 100).',
+                          style: const TextStyle(
+                              color: AppColors.warning,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BtMetric extends StatelessWidget {
+  const _BtMetric({
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+  final String value;
+  final String label;
+  final Color color;
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.textTertiary,
+            fontSize: 10,
+            letterSpacing: 0.6,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
 }

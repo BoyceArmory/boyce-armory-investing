@@ -114,6 +114,64 @@ class _DetectorsTabState extends ConsumerState<DetectorsTab> {
     }
   }
 
+  Future<void> _runAutoDemote() async {
+    HapticFeedback.lightImpact();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.graphite,
+        title: const Text('Run auto-demote sweep?',
+            style: TextStyle(color: AppColors.textPrimary)),
+        content: const Text(
+          'Reads setup_stats and disables every (mode,kind) detector with '
+          'expectancyPct ≤ -0.1% and ≥100 sampled trades. Already-disabled '
+          'detectors are left alone. Logs to Audit.',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+        ),
+        actions: <Widget>[
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: AppColors.obsidian,
+            ),
+            child: const Text('Run sweep'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _saving = '__auto_demote__');
+    try {
+      final r =
+          await ref.read(adminRepositoryProvider).runAutoDemote();
+      if (!mounted) return;
+      final newly = (r['newlyDisabled'] as List?) ?? const <dynamic>[];
+      final flagged = r['flagged'] ?? 0;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Sweep: $flagged flagged, ${newly.length} newly disabled.'),
+          backgroundColor:
+              newly.isEmpty ? AppColors.bullish : AppColors.warning,
+        ),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Sweep failed: $e'),
+            backgroundColor: AppColors.bearish),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = null);
+    }
+  }
+
   Future<void> _toggle(String key, bool enabled) async {
     HapticFeedback.lightImpact();
     final updated = Set<String>.from(_disabled);
@@ -189,6 +247,28 @@ class _DetectorsTabState extends ConsumerState<DetectorsTab> {
                     height: 16,
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: AppColors.gold),
+                  )
+                else
+                  TextButton.icon(
+                    onPressed: _saving == '__auto_demote__'
+                        ? null
+                        : _runAutoDemote,
+                    icon: const Icon(Icons.auto_fix_high,
+                        size: 14, color: AppColors.warning),
+                    label: Text(
+                      _saving == '__auto_demote__'
+                          ? 'Running…'
+                          : 'Auto-demote',
+                      style: const TextStyle(
+                          color: AppColors.warning,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800),
+                    ),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                    ),
                   ),
               ],
             ),
