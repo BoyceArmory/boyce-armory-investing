@@ -363,6 +363,23 @@ class _NotificationSection extends StatelessWidget {
     return _Card(
       child: Column(
         children: <Widget>[
+          ListTile(
+            title: const Text('Notification inbox',
+                style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14)),
+            subtitle: const Text(
+              'See every push the desk has sent recently',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            ),
+            leading: const Icon(Icons.inbox_outlined,
+                color: AppColors.gold, size: 20),
+            trailing: const Icon(Icons.chevron_right,
+                color: AppColors.textTertiary),
+            onTap: () => context.go(RoutePaths.notifications),
+          ),
+          const Divider(color: AppColors.steel, height: 1),
           _Tile(
             title: 'All notifications',
             subtitle: 'Master switch for every push channel',

@@ -167,6 +167,16 @@ class AdminRepository {
     await _api.patchJson('/api/users/me/notifications', body: prefs);
   }
 
+  /// In-app notification center feed. Returns the last 50 broadcast pushes
+  /// (audience='all'). Each item carries the original deepLink so taps can
+  /// reuse the existing FCM tap handler. Today every push is a broadcast;
+  /// per-user targeting may filter further in the future.
+  Future<List<Map<String, dynamic>>> fetchMyNotificationHistory() async {
+    final j = await _api.getJson('/api/users/me/notification-history');
+    final items = (j['items'] as List?) ?? const <dynamic>[];
+    return items.whereType<Map<String, dynamic>>().toList(growable: false);
+  }
+
   // ---- Chat broadcast (ADMIN BUYS) ------------------------------------
 
   /// Fire an FCM push to every active device for an admin chat post.

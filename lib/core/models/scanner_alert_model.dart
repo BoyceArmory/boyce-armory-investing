@@ -40,6 +40,10 @@ class ScannerAlert extends Equatable {
     this.stillValid,
     this.lastCheckedPrice,
     this.decayReason,
+    this.triggerSnapshot,
+    this.backtestExpectancyPct,
+    this.backtestAvgWinPct,
+    this.backtestAvgLossPct,
   });
 
   final String id;
@@ -130,6 +134,17 @@ class ScannerAlert extends Equatable {
   ///   "snapshot_drift"  — entry price was wrong; differs > 5% from re-check
   final String? decayReason;
 
+  /// Frozen numerical snapshot of the conditions at fire time. Powers the
+  /// per-alert "why this fired" panel. Never updated after publish — even a
+  /// decayed alert shows what was true when the signal originally fired.
+  final TriggerSnapshot? triggerSnapshot;
+
+  /// Measured backtest edge for this (mode, kind), captured at publish time
+  /// from setup_stats. `null` if no backtest data exists yet.
+  final double? backtestExpectancyPct;
+  final double? backtestAvgWinPct;
+  final double? backtestAvgLossPct;
+
   bool get isBullish => direction == SetupDirection.bullish;
 
   double? get riskRewardRatio {
@@ -188,6 +203,13 @@ class ScannerAlert extends Equatable {
       stillValid: m['still_valid'] is bool ? m['still_valid'] as bool : null,
       lastCheckedPrice: (m['lastCheckedPrice'] as num?)?.toDouble(),
       decayReason: m['decayReason'] as String?,
+      triggerSnapshot: m['triggerSnapshot'] is Map<String, dynamic>
+          ? TriggerSnapshot.fromMap(m['triggerSnapshot'] as Map<String, dynamic>)
+          : null,
+      backtestExpectancyPct:
+          (m['backtestExpectancyPct'] as num?)?.toDouble(),
+      backtestAvgWinPct: (m['backtestAvgWinPct'] as num?)?.toDouble(),
+      backtestAvgLossPct: (m['backtestAvgLossPct'] as num?)?.toDouble(),
     );
   }
 
@@ -225,4 +247,98 @@ DateTime? _parseDate(Object? raw) {
   } catch (_) {
     return null;
   }
+}
+
+/// Frozen technical snapshot stamped onto a scanner alert at fire time.
+/// Used by the "why this fired" panel. Every field optional because older
+/// alerts (pre 2.1.0) won't have this map.
+class TriggerSnapshot extends Equatable {
+  const TriggerSnapshot({
+    this.rsi14,
+    this.atr14,
+    this.vwap,
+    this.vwapDistPct,
+    this.ema9,
+    this.ema20,
+    this.ema50,
+    this.adx14,
+    this.nr7,
+    this.insideBar,
+    this.swingHigh50,
+    this.swingLow50,
+    this.weeklyTrend,
+    this.sectorPerfPct,
+    this.regime,
+  });
+
+  final double? rsi14;
+  final double? atr14;
+  final double? vwap;
+  /// Signed % distance from VWAP: (price - vwap) / vwap * 100.
+  final double? vwapDistPct;
+  final double? ema9;
+  final double? ema20;
+  final double? ema50;
+  final double? adx14;
+  final bool? nr7;
+  final bool? insideBar;
+  final double? swingHigh50;
+  final double? swingLow50;
+  final String? weeklyTrend; // up | down | sideways
+  /// Sector ETF day change %. Signed.
+  final double? sectorPerfPct;
+  /// Live regime classification at fire time: bull | bear | chop.
+  final String? regime;
+
+  factory TriggerSnapshot.fromMap(Map<String, dynamic> m) => TriggerSnapshot(
+        rsi14: (m['rsi14'] as num?)?.toDouble(),
+        atr14: (m['atr14'] as num?)?.toDouble(),
+        vwap: (m['vwap'] as num?)?.toDouble(),
+        vwapDistPct: (m['vwapDistPct'] as num?)?.toDouble(),
+        ema9: (m['ema9'] as num?)?.toDouble(),
+        ema20: (m['ema20'] as num?)?.toDouble(),
+        ema50: (m['ema50'] as num?)?.toDouble(),
+        adx14: (m['adx14'] as num?)?.toDouble(),
+        nr7: m['nr7'] as bool?,
+        insideBar: m['insideBar'] as bool?,
+        swingHigh50: (m['swingHigh50'] as num?)?.toDouble(),
+        swingLow50: (m['swingLow50'] as num?)?.toDouble(),
+        weeklyTrend: m['weeklyTrend'] as String?,
+        sectorPerfPct: (m['sectorPerfPct'] as num?)?.toDouble(),
+        regime: m['regime'] as String?,
+      );
+
+  /// True when ANY field is non-null. Used by UI to decide whether to render
+  /// the "why this fired" panel at all (older alerts won't have data).
+  bool get hasAnyData =>
+      rsi14 != null ||
+      atr14 != null ||
+      vwap != null ||
+      ema9 != null ||
+      adx14 != null ||
+      nr7 == true ||
+      insideBar == true ||
+      swingHigh50 != null ||
+      swingLow50 != null ||
+      sectorPerfPct != null ||
+      regime != null;
+
+  @override
+  List<Object?> get props => [
+        rsi14,
+        atr14,
+        vwap,
+        vwapDistPct,
+        ema9,
+        ema20,
+        ema50,
+        adx14,
+        nr7,
+        insideBar,
+        swingHigh50,
+        swingLow50,
+        weeklyTrend,
+        sectorPerfPct,
+        regime,
+      ];
 }

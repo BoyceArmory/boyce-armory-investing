@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "push_history",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "audience", "order": "ASCENDING" },
+        { "fieldPath": "sentAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "scanner_alerts",
       "queryScope": "COLLECTION",
       "fields": [

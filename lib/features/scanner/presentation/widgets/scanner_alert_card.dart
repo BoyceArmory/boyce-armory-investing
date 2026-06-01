@@ -264,6 +264,13 @@ class _ExpandedSection extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
+          if (alert.triggerSnapshot != null &&
+              alert.triggerSnapshot!.hasAnyData) ...<Widget>[
+            const SizedBox(height: 14),
+            _SectionTitle('WHY THIS FIRED', color: accent),
+            const SizedBox(height: 6),
+            _WhyThisFiredPanel(alert: alert, accent: accent),
+          ],
           const SizedBox(height: 14),
           _SectionTitle('HOW THIS SETUP WORKS', color: accent),
           const SizedBox(height: 6),
@@ -518,6 +525,311 @@ class _WinRateChip extends StatelessWidget {
               color: _color,
               fontSize: 10,
               fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// "Why this fired" panel — renders the frozen triggerSnapshot as a tight
+// right-aligned grid of facts. Each fact is one short phrase so the panel
+// stays scannable on a 14pt screen. Anything `null` is silently skipped.
+// ---------------------------------------------------------------------------
+
+class _WhyThisFiredPanel extends StatelessWidget {
+  const _WhyThisFiredPanel({required this.alert, required this.accent});
+  final ScannerAlert alert;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = alert.triggerSnapshot!;
+    final facts = <_Fact>[];
+
+    // ---- Momentum ----
+    if (t.rsi14 != null) {
+      facts.add(_Fact(
+        'RSI(14)',
+        t.rsi14!.toStringAsFixed(1),
+        _rsiTone(t.rsi14!),
+      ));
+    }
+    if (t.adx14 != null) {
+      final adx = t.adx14!;
+      String label;
+      Color tone;
+      if (adx >= 40) {
+        label = 'very strong';
+        tone = AppColors.bullish;
+      } else if (adx >= 25) {
+        label = 'trending';
+        tone = AppColors.bullish;
+      } else if (adx >= 20) {
+        label = 'soft';
+        tone = AppColors.textSecondary;
+      } else {
+        label = 'choppy';
+        tone = AppColors.warning;
+      }
+      facts.add(_Fact(
+          'ADX(14)', '${adx.toStringAsFixed(0)} · $label', tone));
+    }
+
+    // ---- VWAP / EMAs (Day mode is most relevant) ----
+    if (t.vwapDistPct != null && t.vwap != null) {
+      final d = t.vwapDistPct!;
+      final sign = d >= 0 ? '+' : '';
+      final tone = d >= 0 ? AppColors.bullish : AppColors.bearish;
+      facts.add(_Fact(
+          'vs VWAP', '$sign${d.toStringAsFixed(2)}%', tone));
+    }
+    if (t.ema9 != null && alert.currentPrice != null) {
+      final above = alert.currentPrice! > t.ema9!;
+      facts.add(_Fact('vs EMA9', above ? 'above' : 'below',
+          above ? AppColors.bullish : AppColors.bearish));
+    }
+    if (t.ema20 != null && alert.currentPrice != null) {
+      final above = alert.currentPrice! > t.ema20!;
+      facts.add(_Fact('vs EMA20', above ? 'above' : 'below',
+          above ? AppColors.bullish : AppColors.bearish));
+    }
+    if (t.ema50 != null && alert.currentPrice != null) {
+      final above = alert.currentPrice! > t.ema50!;
+      facts.add(_Fact('vs EMA50', above ? 'above' : 'below',
+          above ? AppColors.bullish : AppColors.bearish));
+    }
+
+    // ---- Volume ----
+    if (alert.relVolume != null) {
+      final rv = alert.relVolume!;
+      final tone = rv >= 1.5
+          ? AppColors.bullish
+          : rv >= 1.0
+              ? AppColors.textSecondary
+              : AppColors.bearish;
+      facts.add(_Fact('Rel vol', '${rv.toStringAsFixed(2)}×', tone));
+    }
+
+    // ---- ATR (volatility context for the stop) ----
+    if (t.atr14 != null && alert.entry != null) {
+      final atrPct = (t.atr14! / alert.entry!) * 100;
+      facts.add(_Fact(
+          'ATR', '${atrPct.toStringAsFixed(2)}%', AppColors.textSecondary));
+    }
+
+    // ---- Compression flags ----
+    if (t.nr7 == true) {
+      facts.add(_Fact('NR7', 'narrowest 7', AppColors.bullish));
+    }
+    if (t.insideBar == true) {
+      facts.add(_Fact('Inside bar', 'yes', AppColors.bullish));
+    }
+
+    // ---- Key levels ----
+    if (t.swingHigh50 != null && alert.currentPrice != null) {
+      final pct =
+          ((t.swingHigh50! - alert.currentPrice!) / alert.currentPrice!) *
+              100;
+      final tone = pct.abs() < 1.0 ? AppColors.bullish : AppColors.textSecondary;
+      facts.add(_Fact(
+          '50d high', '${pct >= 0 ? "+" : ""}${pct.toStringAsFixed(1)}% away',
+          tone));
+    }
+    if (t.swingLow50 != null && alert.currentPrice != null) {
+      final pct =
+          ((alert.currentPrice! - t.swingLow50!) / t.swingLow50!) * 100;
+      facts.add(_Fact('50d low',
+          '${pct >= 0 ? "+" : ""}${pct.toStringAsFixed(1)}% above',
+          AppColors.textSecondary));
+    }
+
+    // ---- Market context ----
+    if (t.sectorPerfPct != null) {
+      final s = t.sectorPerfPct!;
+      facts.add(_Fact(
+        'Sector',
+        '${s >= 0 ? "+" : ""}${s.toStringAsFixed(2)}%',
+        s >= 0 ? AppColors.bullish : AppColors.bearish,
+      ));
+    }
+    if (t.regime != null) {
+      final r = t.regime!;
+      final tone = r == 'bull'
+          ? AppColors.bullish
+          : r == 'bear'
+              ? AppColors.bearish
+              : AppColors.warning;
+      facts.add(_Fact('Regime', r.toUpperCase(), tone));
+    }
+    if (t.weeklyTrend != null) {
+      final w = t.weeklyTrend!;
+      final tone = w == 'up'
+          ? AppColors.bullish
+          : w == 'down'
+              ? AppColors.bearish
+              : AppColors.textSecondary;
+      facts.add(_Fact('Weekly', w.toUpperCase(), tone));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        // The fact grid itself, right-aligned to match the card.
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 6,
+          runSpacing: 6,
+          children: facts
+              .map((f) => _FactChip(fact: f))
+              .toList(growable: false),
+        ),
+        // Backtest edge footer — measured per-detector expectancy. Only
+        // shown when we have data and a meaningful sample size.
+        if (alert.backtestExpectancyPct != null &&
+            alert.histSampleSize != null &&
+            alert.histSampleSize! >= 30) ...<Widget>[
+          const SizedBox(height: 10),
+          _BacktestEdgeBar(
+            expectancyPct: alert.backtestExpectancyPct!,
+            avgWinPct: alert.backtestAvgWinPct,
+            avgLossPct: alert.backtestAvgLossPct,
+            sampleSize: alert.histSampleSize!,
+            accent: accent,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Color _rsiTone(double rsi) {
+    if (rsi >= 70) return AppColors.bearish;     // overbought
+    if (rsi >= 55) return AppColors.bullish;     // bullish bias
+    if (rsi >= 45) return AppColors.textSecondary;
+    if (rsi >= 30) return AppColors.warning;     // weakening
+    return AppColors.bearish;                    // oversold
+  }
+}
+
+class _Fact {
+  const _Fact(this.label, this.value, this.tone);
+  final String label;
+  final String value;
+  final Color tone;
+}
+
+class _FactChip extends StatelessWidget {
+  const _FactChip({required this.fact});
+  final _Fact fact;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: fact.tone.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            fact.label.toUpperCase(),
+            style: const TextStyle(
+              color: Color(0xFFB6BBC4),
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            fact.value,
+            style: TextStyle(
+              color: fact.tone,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BacktestEdgeBar extends StatelessWidget {
+  const _BacktestEdgeBar({
+    required this.expectancyPct,
+    required this.avgWinPct,
+    required this.avgLossPct,
+    required this.sampleSize,
+    required this.accent,
+  });
+  final double expectancyPct;
+  final double? avgWinPct;
+  final double? avgLossPct;
+  final int sampleSize;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final positive = expectancyPct > 0;
+    final tone = positive
+        ? AppColors.bullish
+        : (expectancyPct == 0
+            ? AppColors.textSecondary
+            : AppColors.bearish);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: tone.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            'MEASURED EDGE',
+            style: TextStyle(
+              color: tone,
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '${positive ? "+" : ""}${expectancyPct.toStringAsFixed(2)}% per trade',
+            style: TextStyle(
+              color: tone,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (avgWinPct != null && avgLossPct != null) ...<Widget>[
+            const SizedBox(height: 2),
+            Text(
+              'avg win +${avgWinPct!.toStringAsFixed(2)}% · '
+              'avg loss -${avgLossPct!.toStringAsFixed(2)}%',
+              style: const TextStyle(
+                color: Color(0xFFB6BBC4),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          const SizedBox(height: 2),
+          Text(
+            'n = $sampleSize backtested trades',
+            style: const TextStyle(
+              color: Color(0xFF7C8290),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
               letterSpacing: 0.4,
             ),
           ),
