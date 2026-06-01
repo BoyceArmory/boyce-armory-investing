@@ -6,6 +6,7 @@ import '../../../../core/providers/auth_state_provider.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/empty_state.dart';
+import '../providers/admin_providers.dart';
 import '../widgets/alerts_tab.dart';
 import '../widgets/audit_tab.dart';
 import '../widgets/backtest_tab.dart';
@@ -53,6 +54,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
   void initState() {
     super.initState();
     _tabs = TabController(length: _specs.length, vsync: this);
+    // Bi-directional sync: when the user swipes/taps the bar, push the new
+    // index into the provider so other widgets (e.g. Status cards) read the
+    // current tab. When the provider mutates (e.g. a card tap calls notifier.state =),
+    // the build() listener animates the controller. The `indexIsChanging`
+    // guard prevents the two from fighting each other mid-animation.
+    _tabs.addListener(() {
+      if (_tabs.indexIsChanging) return;
+      final cur = ref.read(adminTabIndexProvider);
+      if (cur != _tabs.index) {
+        ref.read(adminTabIndexProvider.notifier).state = _tabs.index;
+      }
+    });
   }
 
   @override
@@ -64,6 +77,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
   @override
   Widget build(BuildContext context) {
     final bool isAdmin = ref.watch(isAdminProvider);
+    // Listen for jump-to-tab requests from anywhere in the tree.
+    ref.listen<int>(adminTabIndexProvider, (prev, next) {
+      if (next < 0 || next >= _specs.length) return;
+      if (_tabs.index != next) {
+        _tabs.animateTo(next);
+      }
+    });
     return Scaffold(
       backgroundColor: AppColors.obsidian,
       appBar: AppBar(

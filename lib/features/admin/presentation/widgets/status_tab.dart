@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -67,28 +68,89 @@ class _StatusLoading extends StatelessWidget {
   }
 }
 
-class _StatusBody extends StatelessWidget {
+class _StatusBody extends ConsumerWidget {
   const _StatusBody({required this.status});
   final SystemStatus status;
 
+  // Tab indices on the admin dashboard. Kept in sync with
+  // admin_dashboard_screen._specs — if you reorder tabs, update these.
+  static const int _scannerTab = 1;
+  static const int _pushTab = 4;
+  static const int _backtestTab = 5;
+
+  void _jumpTo(WidgetRef ref, int index) {
+    ref.read(adminTabIndexProvider.notifier).state = index;
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
       children: <Widget>[
         _LastFetchedStrip(fetchedAt: status.fetchedAt),
         const SizedBox(height: 10),
+        // Service card has no other tab to jump to.
         _ServiceCard(service: status.service, scheduler: status.scheduler),
         const SizedBox(height: 12),
-        _ScannerCard(scanner: status.scanner),
+        _TapToTab(
+          onTap: () => _jumpTo(ref, _scannerTab),
+          child: _ScannerCard(scanner: status.scanner),
+        ),
         const SizedBox(height: 12),
-        const _BacktestHealthCard(),
+        _TapToTab(
+          onTap: () => _jumpTo(ref, _backtestTab),
+          child: const _BacktestHealthCard(),
+        ),
         const SizedBox(height: 12),
         _ApiCard(api: status.api),
         const SizedBox(height: 12),
-        _PushCard(push: status.push),
+        _TapToTab(
+          onTap: () => _jumpTo(ref, _pushTab),
+          child: _PushCard(push: status.push),
+        ),
         const SizedBox(height: 12),
-        _DevicesCard(devices: status.devices, firebase: status.firebase),
+        _TapToTab(
+          onTap: () => _jumpTo(ref, _pushTab),
+          child: _DevicesCard(devices: status.devices, firebase: status.firebase),
+        ),
+      ],
+    );
+  }
+}
+
+/// Thin tap wrapper for a Status card. Adds a subtle gold "go to tab" affordance
+/// without changing the card's visual weight when not hovered. We use a
+/// gesture detector instead of wrapping in InkWell so the card's own
+/// borderRadius / padding stays the source of truth.
+class _TapToTab extends StatelessWidget {
+  const _TapToTab({required this.child, required this.onTap});
+  final Widget child;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: <Widget>[
+        Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onTap();
+            },
+            child: child,
+          ),
+        ),
+        Positioned(
+          top: 14,
+          right: 60,
+          child: Icon(
+            Icons.arrow_forward,
+            size: 10,
+            color: AppColors.textTertiary.withValues(alpha: 0.6),
+          ),
+        ),
       ],
     );
   }

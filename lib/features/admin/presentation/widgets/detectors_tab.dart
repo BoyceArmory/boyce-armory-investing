@@ -84,6 +84,14 @@ class _DetectorsTabState extends ConsumerState<DetectorsTab> {
   bool _loading = false;
   String? _saving;
 
+  // Bulk preview sliders state. expectancyFloor is a NEGATIVE number — any
+  // detector with expectancyPct <= this floor is a demote candidate. The cron
+  // default is -0.1; admins can dial it tighter (-0.05 to demote more
+  // aggressively) or looser (-0.3 to only nuke the obvious losers).
+  double _expectancyFloor = -0.10;
+  int _minSampleSize = 100;
+  bool _showPreview = false;
+
   @override
   void initState() {
     super.initState();
@@ -111,6 +119,86 @@ class _DetectorsTabState extends ConsumerState<DetectorsTab> {
       // silent
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Compute which detectors WOULD be disabled at the current threshold
+  /// settings. Pulls from the loaded `_statsByKey` (backtest data). Excludes
+  /// detectors already disabled — those are unchanged.
+  List<String> _previewMatches() {
+    final out = <String>[];
+    for (final entry in _statsByKey.entries) {
+      final key = entry.key;
+      if (_disabled.contains(key)) continue;
+      final exp = (entry.value['expectancyPct'] as num?)?.toDouble();
+      final n = (entry.value['totalTrades'] as num?)?.toInt() ?? 0;
+      if (exp == null) continue;
+      if (exp <= _expectancyFloor && n >= _minSampleSize) {
+        out.add(key);
+      }
+    }
+    return out;
+  }
+
+  /// Apply the preview — merge the matched keys into the disabled list.
+  /// Same backend path as a manual toggle. Logs to audit via the controller's
+  /// existing path.
+  Future<void> _applyPreview() async {
+    final matches = _previewMatches();
+    if (matches.isEmpty) return;
+    HapticFeedback.lightImpact();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.graphite,
+        title: const Text('Apply preview demotions?',
+            style: TextStyle(color: AppColors.textPrimary)),
+        content: Text(
+          'Will disable ${matches.length} detector${matches.length == 1 ? "" : "s"} '
+          'with expectancyPct ≤ ${_expectancyFloor.toStringAsFixed(2)}% '
+          'and ≥ $_minSampleSize sampled trades.\n\n'
+          'Existing disabled detectors are unchanged. You can re-enable any '
+          'detector from the list below.',
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+        ),
+        actions: <Widget>[
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: AppColors.obsidian,
+            ),
+            child: Text('Disable ${matches.length}'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _saving = '__bulk_preview__');
+    try {
+      final merged = <String>{..._disabled, ...matches}.toList();
+      final out =
+          await ref.read(adminRepositoryProvider).setDisabledDetectors(merged);
+      if (!mounted) return;
+      setState(() => _disabled = out.toSet());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Disabled ${matches.length} detector(s).'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Apply failed: $e'),
+            backgroundColor: AppColors.bearish),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = null);
     }
   }
 
@@ -273,6 +361,18 @@ class _DetectorsTabState extends ConsumerState<DetectorsTab> {
               ],
             ),
           ),
+          const SizedBox(height: 8),
+          _BulkPreviewPanel(
+            expanded: _showPreview,
+            onToggle: () => setState(() => _showPreview = !_showPreview),
+            floor: _expectancyFloor,
+            minN: _minSampleSize,
+            onFloorChanged: (v) => setState(() => _expectancyFloor = v),
+            onMinNChanged: (v) => setState(() => _minSampleSize = v.round()),
+            matches: _previewMatches(),
+            applying: _saving == '__bulk_preview__',
+            onApply: _applyPreview,
+          ),
           const SizedBox(height: 12),
           for (final mode in modes) ...<Widget>[
             Padding(
@@ -402,6 +502,276 @@ class _Row extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bulk preview panel — lets the admin dial expectancy floor + min sample size
+// sliders and SEE which detectors would be disabled before committing the
+// change. The Apply button merges the matched keys into the runtime kill
+// list. Existing disabled entries are left alone.
+// ---------------------------------------------------------------------------
+
+class _BulkPreviewPanel extends StatelessWidget {
+  const _BulkPreviewPanel({
+    required this.expanded,
+    required this.onToggle,
+    required this.floor,
+    required this.minN,
+    required this.onFloorChanged,
+    required this.onMinNChanged,
+    required this.matches,
+    required this.applying,
+    required this.onApply,
+  });
+  final bool expanded;
+  final VoidCallback onToggle;
+  final double floor;
+  final int minN;
+  final ValueChanged<double> onFloorChanged;
+  final ValueChanged<double> onMinNChanged;
+  final List<String> matches;
+  final bool applying;
+  final VoidCallback onApply;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.graphite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: expanded
+              ? AppColors.warning.withValues(alpha: 0.45)
+              : AppColors.steel,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onToggle,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Row(
+                children: <Widget>[
+                  const Icon(Icons.tune,
+                      size: 16, color: AppColors.warning),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Bulk demote by backtest threshold',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ),
+                  if (!expanded) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: matches.isEmpty
+                            ? AppColors.textTertiary.withValues(alpha: 0.12)
+                            : AppColors.warning.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(
+                            color: matches.isEmpty
+                                ? AppColors.textTertiary.withValues(alpha: 0.4)
+                                : AppColors.warning.withValues(alpha: 0.5)),
+                      ),
+                      child: Text(
+                        '${matches.length} match${matches.length == 1 ? "" : "es"}',
+                        style: TextStyle(
+                            color: matches.isEmpty
+                                ? AppColors.textTertiary
+                                : AppColors.warning,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.4),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Icon(
+                    expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (expanded) ...[
+            Container(height: 1, color: AppColors.steel),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  // ---- Expectancy floor slider ----
+                  Row(
+                    children: <Widget>[
+                      const Expanded(
+                        child: Text(
+                          'Expectancy floor',
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 11),
+                        ),
+                      ),
+                      Text(
+                        '${floor.toStringAsFixed(2)}%',
+                        style: const TextStyle(
+                          color: AppColors.warning,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: floor,
+                    min: -0.50,
+                    max: 0.00,
+                    divisions: 50,
+                    activeColor: AppColors.warning,
+                    inactiveColor: AppColors.steel,
+                    onChanged: onFloorChanged,
+                  ),
+                  const SizedBox(height: 4),
+                  // ---- Min sample size slider ----
+                  Row(
+                    children: <Widget>[
+                      const Expanded(
+                        child: Text(
+                          'Min sample size (n)',
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 11),
+                        ),
+                      ),
+                      Text(
+                        '≥ $minN',
+                        style: const TextStyle(
+                          color: AppColors.warning,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: minN.toDouble().clamp(0, 500),
+                    min: 0,
+                    max: 500,
+                    divisions: 50,
+                    activeColor: AppColors.warning,
+                    inactiveColor: AppColors.steel,
+                    onChanged: onMinNChanged,
+                  ),
+                  const SizedBox(height: 8),
+                  // ---- Match list preview ----
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.obsidian,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.steel),
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    child: matches.isEmpty
+                        ? const Text(
+                            'No detectors match these thresholds.',
+                            style: TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: 11),
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                'Would disable ${matches.length} detector${matches.length == 1 ? "" : "s"}:',
+                                style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                children: matches
+                                    .map((k) => Container(
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 6,
+                                                  vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.warning
+                                                .withValues(alpha: 0.12),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                            border: Border.all(
+                                                color: AppColors.warning
+                                                    .withValues(alpha: 0.4)),
+                                          ),
+                                          child: Text(
+                                            k,
+                                            style: const TextStyle(
+                                              color: AppColors.warning,
+                                              fontSize: 9.5,
+                                              fontFamily: 'monospace',
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ))
+                                    .toList(growable: false),
+                              ),
+                            ],
+                          ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed:
+                          matches.isEmpty || applying ? null : onApply,
+                      icon: applying
+                          ? const SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.obsidian),
+                            )
+                          : const Icon(Icons.block, size: 14),
+                      label: Text(applying
+                          ? 'Applying…'
+                          : matches.isEmpty
+                              ? 'Apply (none to disable)'
+                              : 'Disable ${matches.length} detector${matches.length == 1 ? "" : "s"}'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: matches.isEmpty
+                            ? AppColors.steel
+                            : AppColors.warning,
+                        foregroundColor: AppColors.obsidian,
+                        textStyle: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

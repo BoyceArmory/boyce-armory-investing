@@ -11,6 +11,13 @@ final Provider<AdminRepository> adminRepositoryProvider =
   return AdminRepository(apiClient: ref.watch(apiClientProvider));
 });
 
+/// Active tab index for the admin dashboard. Lets any nested widget jump to
+/// another tab without prop-drilling a callback through every parent. The
+/// dashboard listens to this and animates its TabController whenever the
+/// value changes; cards in the Status tab write to it on tap.
+final StateProvider<int> adminTabIndexProvider =
+    StateProvider<int>((Ref _) => 0);
+
 /// Auto-refreshing system status (30s tick). Used by the Status tab.
 final StreamProvider<SystemStatus> systemStatusStreamProvider =
     StreamProvider<SystemStatus>((Ref ref) {
