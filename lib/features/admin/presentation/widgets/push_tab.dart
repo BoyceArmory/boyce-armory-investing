@@ -108,12 +108,32 @@ class _PushTabState extends ConsumerState<PushTab> {
       builder: (_) => const _AnnouncementDialog(),
     );
     if (result == null) return;
+    final force = (result['force'] as bool?) ?? false;
+    final title = result['title'] as String;
+    final body = result['body'] as String;
+    // Confirmation step — announces hit every signed-in customer's lock
+    // screen, so we put a hard pause between composing and dispatching.
+    // Force mode gets a redder, scarier confirmation since it bypasses
+    // user-side mutes AND quiet hours.
+    if (!mounted) return;
+    final activeCount =
+        (_devices?['activeCount'] as num?)?.toInt() ?? 0;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => _AnnouncementConfirmDialog(
+        title: title,
+        body: body,
+        force: force,
+        reach: activeCount,
+      ),
+    );
+    if (confirmed != true) return;
     try {
       final repo = ref.read(adminRepositoryProvider);
       final res = await repo.announce(
-        title: result['title'] as String,
-        body: result['body'] as String,
-        force: (result['force'] as bool?) ?? false,
+        title: title,
+        body: body,
+        force: force,
       );
       final sent = (res['sent'] as num?)?.toInt() ?? 0;
       final devices = (res['deviceCount'] as num?)?.toInt() ?? 0;
@@ -481,6 +501,179 @@ class _AnnouncementDialogState extends State<_AnnouncementDialog> {
             foregroundColor: AppColors.obsidian,
           ),
           child: Text(_force ? 'Send (force)' : 'Send'),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Confirmation dialog — hard pause between composing an announcement and
+// actually dispatching it. Force mode gets a redder, more explicit warning
+// since it bypasses user mutes AND quiet hours.
+// ---------------------------------------------------------------------------
+
+class _AnnouncementConfirmDialog extends StatelessWidget {
+  const _AnnouncementConfirmDialog({
+    required this.title,
+    required this.body,
+    required this.force,
+    required this.reach,
+  });
+  final String title;
+  final String body;
+  final bool force;
+  /// Latest active-device count, fed in by the parent so the dialog can
+  /// show "Reach: ~N devices". Approximate — actual fan-out also depends
+  /// on per-user mutes (regular announce) or nothing (force announce).
+  final int reach;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = force ? AppColors.bearish : AppColors.gold;
+    return AlertDialog(
+      backgroundColor: AppColors.graphite,
+      title: Row(
+        children: <Widget>[
+          Icon(
+            force ? Icons.warning_amber_rounded : Icons.send_outlined,
+            color: accent,
+            size: 22,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            force ? 'Force send to everyone?' : 'Send announcement?',
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            // ---- Preview block: what the lock screen will look like ----
+            Container(
+              padding:
+                  const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              decoration: BoxDecoration(
+                color: AppColors.obsidian,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.steel),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Text(
+                    'PREVIEW',
+                    style: TextStyle(
+                      color: AppColors.textTertiary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    body,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // ---- Reach summary ----
+            Row(
+              children: <Widget>[
+                Icon(Icons.phonelink_ring,
+                    size: 14, color: accent),
+                const SizedBox(width: 6),
+                Text(
+                  'Reach: ~$reach active devices',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // ---- Force-specific warning ----
+            if (force)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.bearish.withValues(alpha: 0.08),
+                  border: Border.all(
+                      color: AppColors.bearish.withValues(alpha: 0.5)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: <Widget>[
+                    Icon(Icons.error_outline,
+                        color: AppColors.bearish, size: 14),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'FORCE MODE: bypasses every user mute AND quiet hours. '
+                        'Use only for emergencies — outage, market early close, true crisis.',
+                        style: TextStyle(
+                          color: AppColors.bearish,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              const Text(
+                'Skips users who muted announcements or are in quiet hours. '
+                'Reach number is approximate — actual delivery is filtered per-user.',
+                style: TextStyle(
+                  color: AppColors.textTertiary,
+                  fontSize: 11,
+                  height: 1.4,
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton.icon(
+          onPressed: () => Navigator.of(context).pop(true),
+          icon: Icon(force ? Icons.warning_amber_rounded : Icons.send,
+              size: 16),
+          label: Text(force ? 'Force send now' : 'Send to everyone'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: accent,
+            foregroundColor: AppColors.obsidian,
+            textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          ),
         ),
       ],
     );

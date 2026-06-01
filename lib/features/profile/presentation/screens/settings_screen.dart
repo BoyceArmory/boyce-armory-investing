@@ -281,13 +281,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (_) => const _AnnouncementDialog(),
     );
     if (result == null) return;
+    final force = (result['force'] as bool?) ?? false;
+    final title = result['title'] as String;
+    final body = result['body'] as String;
+    // Confirmation step. Fetches the live device count so the admin
+    // sees the actual reach before pulling the trigger.
+    int reach = 0;
+    try {
+      final repo0 = ref.read(adminRepositoryProvider);
+      final devs = await repo0.listDeviceTokens();
+      reach = (devs['activeCount'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      // Best-effort — fall through with reach=0; the confirm still works.
+    }
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => _AnnounceConfirmSheet(
+        title: title,
+        body: body,
+        force: force,
+        reach: reach,
+      ),
+    );
+    if (confirmed != true) return;
     HapticFeedback.heavyImpact();
     try {
       final repo = ref.read(adminRepositoryProvider);
       final res = await repo.announce(
-        title: result['title'] as String,
-        body: result['body'] as String,
-        force: result['force'] as bool? ?? false,
+        title: title,
+        body: body,
+        force: force,
       );
       if (!mounted) return;
       final sent = (res['sent'] as num?)?.toInt() ?? 0;
@@ -1178,4 +1202,169 @@ String _fmtHour(int h) {
   if (h < 12) return '${h.toString().padLeft(2, "0")}:00 AM';
   if (h == 12) return '12:00 PM';
   return '${(h - 12).toString().padLeft(2, "0")}:00 PM';
+}
+
+// ---------------------------------------------------------------------------
+// Confirmation dialog for the Settings → Admin announce shortcut. Mirrors
+// the one in push_tab.dart so the second entry point also has a hard pause
+// + preview + force-mode warning before dispatching.
+// ---------------------------------------------------------------------------
+
+class _AnnounceConfirmSheet extends StatelessWidget {
+  const _AnnounceConfirmSheet({
+    required this.title,
+    required this.body,
+    required this.force,
+    required this.reach,
+  });
+  final String title;
+  final String body;
+  final bool force;
+  final int reach;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = force ? AppColors.bearish : AppColors.gold;
+    return AlertDialog(
+      backgroundColor: AppColors.graphite,
+      title: Row(
+        children: <Widget>[
+          Icon(
+            force ? Icons.warning_amber_rounded : Icons.send_outlined,
+            color: accent,
+            size: 22,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            force ? 'Force send to everyone?' : 'Send announcement?',
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              decoration: BoxDecoration(
+                color: AppColors.obsidian,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.steel),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Text(
+                    'PREVIEW',
+                    style: TextStyle(
+                      color: AppColors.textTertiary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    body,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: <Widget>[
+                Icon(Icons.phonelink_ring, size: 14, color: accent),
+                const SizedBox(width: 6),
+                Text(
+                  'Reach: ~$reach active devices',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (force)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.bearish.withValues(alpha: 0.08),
+                  border: Border.all(
+                      color: AppColors.bearish.withValues(alpha: 0.5)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: <Widget>[
+                    Icon(Icons.error_outline,
+                        color: AppColors.bearish, size: 14),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'FORCE MODE: bypasses every user mute AND quiet hours. '
+                        'Use only for emergencies — outage, market early close, true crisis.',
+                        style: TextStyle(
+                          color: AppColors.bearish,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              const Text(
+                'Skips users who muted announcements or are in quiet hours. '
+                'Reach is approximate — actual delivery is filtered per-user.',
+                style: TextStyle(
+                  color: AppColors.textTertiary,
+                  fontSize: 11,
+                  height: 1.4,
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton.icon(
+          onPressed: () => Navigator.of(context).pop(true),
+          icon: Icon(force ? Icons.warning_amber_rounded : Icons.send,
+              size: 16),
+          label: Text(force ? 'Force send now' : 'Send to everyone'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: accent,
+            foregroundColor: AppColors.obsidian,
+            textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
+    );
+  }
 }
