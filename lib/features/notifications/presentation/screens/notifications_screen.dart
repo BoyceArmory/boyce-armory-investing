@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -10,11 +9,6 @@ import '../../../../shared/widgets/section_header.dart';
 import '../../../admin/data/admin_repository.dart';
 import '../../../admin/presentation/providers/admin_providers.dart';
 
-/// Shared-preferences key for the user's last-selected channel filter on
-/// the inbox. Persists across launches so they don't have to re-select
-/// "Hot Trades only" every time. Use 'all' for "no filter".
-const String _kInboxFilterPref = 'notifications.inboxFilter';
-
 /// In-app notification center. Shows the last 50 broadcast pushes the user
 /// could have received, with the same deeplink each push had originally so
 /// taps reuse the existing FCM tap handler.
@@ -22,6 +16,10 @@ const String _kInboxFilterPref = 'notifications.inboxFilter';
 /// May 2026 update: per-channel filter chips at the top let the user
 /// narrow to Hot Trades / Scanner / Chat / Recap / etc. Filter is a pure
 /// client-side cut on the already-loaded list — no extra API calls.
+///
+/// Filter selection is in-memory only (resets to "All" on app restart).
+/// Persistence across launches was scoped out of 2.1.0 to avoid pulling in
+/// a shared_preferences dependency.
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
@@ -33,32 +31,8 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   String _filter = 'all';
 
-  @override
-  void initState() {
-    super.initState();
-    _loadFilterPref();
-  }
-
-  Future<void> _loadFilterPref() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final v = prefs.getString(_kInboxFilterPref);
-      if (v != null && mounted) setState(() => _filter = v);
-    } catch (_) {
-      // ignore — default to 'all'
-    }
-  }
-
-  Future<void> _persistFilter(String value) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kInboxFilterPref, value);
-    } catch (_) {/* ignore */}
-  }
-
   void _setFilter(String value) {
     setState(() => _filter = value);
-    _persistFilter(value);
   }
 
   /// Channel chip definitions. Ordered by likely-frequency so the most
