@@ -687,6 +687,19 @@ class _WhyThisFiredPanel extends StatelessWidget {
               .map((f) => _FactChip(fact: f))
               .toList(growable: false),
         ),
+        // Earnings warning — only show when earnings is within 7 days.
+        // Critical risk flag: a swing breakout on a stock with earnings
+        // tomorrow is a totally different trade than the same setup 6
+        // weeks out. Yellow border so it stands out without screaming.
+        if (alert.earningsInDays != null &&
+            alert.earningsInDays! >= 0 &&
+            alert.earningsInDays! <= 7) ...<Widget>[
+          const SizedBox(height: 10),
+          _EarningsWarningBar(
+            daysAway: alert.earningsInDays!,
+            isoDate: alert.earningsDate,
+          ),
+        ],
         // Backtest edge footer — measured per-detector expectancy. Only
         // shown when we have data and a meaningful sample size.
         if (alert.backtestExpectancyPct != null &&
@@ -831,6 +844,79 @@ class _BacktestEdgeBar extends StatelessWidget {
               fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Yellow earnings-warning card. Shows when the next earnings is within
+/// 7 days. Render only — visibility decision lives in the parent panel.
+class _EarningsWarningBar extends StatelessWidget {
+  const _EarningsWarningBar({required this.daysAway, this.isoDate});
+  final int daysAway;
+  final String? isoDate;
+
+  String _dateLabel() {
+    if (isoDate == null || isoDate!.length < 8) return '';
+    try {
+      final dt = DateTime.parse(isoDate!);
+      const months = <String>[
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      ];
+      return ' · ${months[dt.month - 1]} ${dt.day}';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final daysLabel = daysAway == 0
+        ? 'TODAY'
+        : daysAway == 1
+            ? 'TOMORROW'
+            : 'in $daysAway days';
+    const warn = Color(0xFFF59E0B);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: warn.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(Icons.warning_amber_rounded, color: warn, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Text(
+                  'EARNINGS RISK',
+                  style: TextStyle(
+                    color: warn,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Reports $daysLabel${_dateLabel()} — gap risk overnight.',
+                  style: const TextStyle(
+                    color: Color(0xFFE7E9EE),
+                    fontSize: 11.5,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

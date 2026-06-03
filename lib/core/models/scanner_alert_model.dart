@@ -44,6 +44,8 @@ class ScannerAlert extends Equatable {
     this.backtestExpectancyPct,
     this.backtestAvgWinPct,
     this.backtestAvgLossPct,
+    this.earningsInDays,
+    this.earningsDate,
   });
 
   final String id;
@@ -145,6 +147,12 @@ class ScannerAlert extends Equatable {
   final double? backtestAvgWinPct;
   final double? backtestAvgLossPct;
 
+  /// Days until this ticker's next earnings report. Used to flag elevated
+  /// risk when the value is ≤ 7. Null for ETFs and tickers with no data.
+  final int? earningsInDays;
+  /// ISO date string (YYYY-MM-DD) of the next earnings, for display.
+  final String? earningsDate;
+
   bool get isBullish => direction == SetupDirection.bullish;
 
   double? get riskRewardRatio {
@@ -210,6 +218,8 @@ class ScannerAlert extends Equatable {
           (m['backtestExpectancyPct'] as num?)?.toDouble(),
       backtestAvgWinPct: (m['backtestAvgWinPct'] as num?)?.toDouble(),
       backtestAvgLossPct: (m['backtestAvgLossPct'] as num?)?.toDouble(),
+      earningsInDays: (m['earningsInDays'] as num?)?.toInt(),
+      earningsDate: m['earningsDate'] as String?,
     );
   }
 
