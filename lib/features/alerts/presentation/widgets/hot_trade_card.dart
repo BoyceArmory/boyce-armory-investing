@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/extensions/datetime_extensions.dart';
 import '../../../../core/models/enums.dart';
 import '../../../../core/models/trade_alert_model.dart';
+import '../../../../core/services/analytics_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/card_background.dart';
 import '../../../../shared/widgets/ticker_logo.dart';
 import '../../../scanner/data/setup_education.dart';
+import '../../../scanner/presentation/widgets/alert_action_bar.dart';
 import '../../../scanner/presentation/widgets/direction_indicator.dart';
 import '../../../scanner/presentation/widgets/grade_badge.dart';
+import '../../../scanner/presentation/widgets/watchlist_star.dart';
 
 /// Hot trade card. Same composition as ScannerAlertCard: full-bleed art,
 /// all info right-aligned on the right half, tap to expand for education.
@@ -74,6 +78,23 @@ class _HotTradeCardState extends State<HotTradeCard> {
                     onOpenDetail: widget.onOpenDetail,
                   )
                 : const SizedBox.shrink(),
+          ),
+          // Engagement row — same as scanner card. Hot Trades cards get the
+          // chart button, star, and 3-button action row so customers can
+          // capture intent on the highest-conviction alerts.
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(
+              children: <Widget>[
+                _HotChartButton(alert: a),
+                const Spacer(),
+                WatchlistStar(symbol: a.symbol),
+              ],
+            ),
+          ),
+          AlertActionBar(
+            alertId: a.id,
+            grade: a.grade?.toString().split('.').last ?? 'A',
           ),
           const SizedBox(height: 8),
           _Footer(alert: a, expanded: _expanded),
@@ -464,6 +485,62 @@ class _SectionTitle extends StatelessWidget {
         fontSize: 10,
         fontWeight: FontWeight.w800,
         letterSpacing: 1.2,
+      ),
+    );
+  }
+}
+
+/// "View Chart" button for Hot Trades cards. Opens the in-app chart
+/// pre-loaded with the alert's entry/stop/target overlay lines.
+class _HotChartButton extends StatelessWidget {
+  const _HotChartButton({required this.alert});
+  final TradeAlert alert;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        AnalyticsService.chartOpened(
+          symbol: alert.symbol,
+          timeframe: '1D',
+        );
+        final StringBuffer qs = StringBuffer();
+        if (alert.entry > 0) qs.write('alertPrice=${alert.entry}');
+        if (alert.stop != null) {
+          if (qs.isNotEmpty) qs.write('&');
+          qs.write('stopPrice=${alert.stop}');
+        }
+        if (alert.target != null) {
+          if (qs.isNotEmpty) qs.write('&');
+          qs.write('targetPrice=${alert.target}');
+        }
+        final String path =
+            qs.isEmpty ? '/chart/${alert.symbol}' : '/chart/${alert.symbol}?$qs';
+        context.push(path);
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(Icons.show_chart, size: 14, color: Colors.white70),
+            const SizedBox(width: 6),
+            const Text(
+              'CHART',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

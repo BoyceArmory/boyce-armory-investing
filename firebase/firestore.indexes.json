@@ -90,6 +90,31 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "closedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "closed_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mode", "order": "ASCENDING" },
+        { "fieldPath": "kind", "order": "ASCENDING" },
+        { "fieldPath": "closedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "active_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "openedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "user_alert_actions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "uid", "order": "ASCENDING" },
+        { "fieldPath": "actionAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

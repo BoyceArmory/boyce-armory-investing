@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/extensions/datetime_extensions.dart';
 import '../../../../core/models/option_contract_model.dart';
 import '../../../../core/models/scanner_alert_model.dart';
+import '../../../../core/routing/route_paths.dart';
+import '../../../../core/services/analytics_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/card_background.dart';
 import '../../../../shared/widgets/ticker_logo.dart';
 import '../../data/setup_education.dart';
+import 'alert_action_bar.dart';
 import 'direction_indicator.dart';
 import 'grade_badge.dart';
+import 'watchlist_star.dart';
 
 /// Premium scanner alert card.
 ///
@@ -91,9 +96,86 @@ class _ScannerAlertCardState extends State<ScannerAlertCard> {
                   )
                 : const SizedBox.shrink(),
           ),
+          // Engagement row: View Chart + Star + 3-button action row.
+          // Sits inline at the bottom of every card. Tap "took"/"watching"
+          // captures real-trade attribution for setup_stats. Star adds to
+          // watchlist. View Chart opens the in-app chart with entry/stop/
+          // target overlays. These three together give every customer the
+          // ability to act on, save, and visualize the setup without leaving
+          // the app.
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(
+              children: <Widget>[
+                _ChartButton(alert: a),
+                const Spacer(),
+                WatchlistStar(symbol: a.symbol),
+              ],
+            ),
+          ),
+          AlertActionBar(alertId: a.id, grade: a.grade.wire),
           const SizedBox(height: 8),
           _Footer(alert: a, expanded: _expanded),
         ],
+      ),
+    );
+  }
+}
+
+/// "View Chart" button — opens the in-app chart with the alert's
+/// entry/stop/target lines overlaid. Logs an analytics event on tap.
+class _ChartButton extends StatelessWidget {
+  const _ChartButton({required this.alert});
+  final ScannerAlert alert;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        AnalyticsService.alertOpened(
+          alertId: alert.id,
+          mode: alert.mode.wire,
+          kind: alert.kind,
+          grade: alert.grade.wire,
+        );
+        final StringBuffer qs = StringBuffer();
+        if (alert.entry != null) qs.write('alertPrice=${alert.entry}');
+        if (alert.stop != null) {
+          if (qs.isNotEmpty) qs.write('&');
+          qs.write('stopPrice=${alert.stop}');
+        }
+        final double? tgt = alert.target2 ?? alert.target;
+        if (tgt != null) {
+          if (qs.isNotEmpty) qs.write('&');
+          qs.write('targetPrice=$tgt');
+        }
+        final String path =
+            qs.isEmpty ? '/chart/${alert.symbol}' : '/chart/${alert.symbol}?$qs';
+        context.push(path);
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.show_chart, size: 14, color: Colors.white70),
+            const SizedBox(width: 6),
+            Text(
+              'CHART',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

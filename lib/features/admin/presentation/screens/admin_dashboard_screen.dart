@@ -12,6 +12,7 @@ import '../widgets/audit_tab.dart';
 import '../widgets/backtest_tab.dart';
 import '../widgets/detectors_tab.dart';
 import '../widgets/jobs_tab.dart';
+import '../widgets/learning_tab.dart';
 import '../widgets/push_tab.dart';
 import '../widgets/scanner_ops_tab.dart';
 import '../widgets/status_tab.dart';
@@ -45,6 +46,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
     _TabSpec('Push', Icons.notifications_active_outlined),
     _TabSpec('Backtest', Icons.analytics_outlined),
     _TabSpec('Detectors', Icons.tune),
+    _TabSpec('Learning', Icons.school_outlined),
     _TabSpec('Users', Icons.people_outline),
     _TabSpec('Trades', Icons.show_chart),
     _TabSpec('Audit', Icons.history),
@@ -117,6 +119,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
                         PushTab(),
                         BacktestTab(),
                         DetectorsTab(),
+                        LearningTab(),
                         UsersTab(),
                         TradesTab(),
                         AuditTab(),
