@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/extensions/datetime_extensions.dart';
+import '../../../../core/models/option_contract_model.dart';
 import '../../../../core/models/scanner_alert_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -562,8 +563,8 @@ class _ContractStat extends StatelessWidget {
 }
 
 String _compactNum(int n) {
-  if (n >= 1_000_000) return '${(n / 1_000_000).toStringAsFixed(1)}M';
-  if (n >= 1_000) return '${(n / 1_000).toStringAsFixed(1)}k';
+  if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+  if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
   return n.toString();
 }
 
@@ -757,15 +758,15 @@ class _ChainAnalyticsPanel extends StatelessWidget {
   final double? currentPrice;
 
   String _gexLabel(double dollars) {
-    final absM = dollars.abs() / 1_000_000;
+    final absM = dollars.abs() / 1000000;
     final sign = dollars >= 0 ? '+' : '-';
     return '$sign\$${absM.toStringAsFixed(0)}M';
   }
 
   String _regimeLabel(double? gex) {
     if (gex == null) return '';
-    if (gex > 50_000_000) return 'mean revert';
-    if (gex < -50_000_000) return 'amplify';
+    if (gex > 50000000) return 'mean revert';
+    if (gex < -50000000) return 'amplify';
     return 'neutral';
   }
 
