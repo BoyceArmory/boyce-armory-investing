@@ -37,7 +37,7 @@ final Provider<ShadowRepository> shadowRepositoryProvider =
 
 /// Aggregate shadow-trading stats over a configurable window.
 /// Defaults to 30 days — matches how customers think about track records.
-final FutureProvider.family<ShadowStats, int> shadowStatsProvider =
+final shadowStatsProvider =
     FutureProvider.family<ShadowStats, int>((Ref ref, int windowDays) {
   return ref
       .watch(shadowRepositoryProvider)
