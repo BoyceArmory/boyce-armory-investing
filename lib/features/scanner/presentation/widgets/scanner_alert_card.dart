@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/extensions/datetime_extensions.dart';
+import '../../../../core/models/enums.dart';
 import '../../../../core/models/option_contract_model.dart';
 import '../../../../core/models/scanner_alert_model.dart';
-import '../../../../core/routing/route_paths.dart';
 import '../../../../core/services/analytics_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';

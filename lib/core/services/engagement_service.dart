@@ -25,7 +25,7 @@ class EngagementService {
     try {
       await _api.postJson(
         '/api/users/me/alerts/$alertId/action',
-        <String, dynamic>{'action': action},
+        body: <String, dynamic>{'action': action},
       );
       return true;
     } catch (_) {
@@ -51,7 +51,7 @@ class EngagementService {
     try {
       final Map<String, dynamic> r = await _api.postJson(
         '/api/users/me/watchlist',
-        <String, dynamic>{'symbol': symbol},
+        body: <String, dynamic>{'symbol': symbol},
       );
       final List<dynamic> raw =
           (r['watchlist'] as List<dynamic>?) ?? <dynamic>[];
