@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/extensions/datetime_extensions.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/services/engagement_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/empty_alert_card.dart';
 import '../../../../shared/widgets/error_state.dart';
@@ -62,8 +63,26 @@ class NewsScreen extends ConsumerWidget {
               onRetry: () => ref.invalidate(homeOverviewStreamProvider),
             ),
             data: (o) {
-              final news = o.news;
-              if (news.isEmpty) {
+              // Watchlist-rank: pin headlines whose text mentions a watchlisted
+              // symbol to the top under a "FROM YOUR WATCHLIST" header. Falls
+              // back to chronological-grouped view when nothing matches.
+              // Substring match is brittle (e.g. "AAPL" matches "AAPL.B") but
+              // close enough for a quick personalization win.
+              final Set<String> watch = ref.watch(watchlistProvider);
+              final List<NewsItem> watched = <NewsItem>[];
+              final List<NewsItem> rest = <NewsItem>[];
+              for (final NewsItem n in o.news) {
+                final String hl = n.headline.toUpperCase();
+                final bool hit = watch.any((String s) =>
+                    RegExp(r'\b' + RegExp.escape(s) + r'\b').hasMatch(hl));
+                if (hit) {
+                  watched.add(n);
+                } else {
+                  rest.add(n);
+                }
+              }
+              final news = rest;
+              if (o.news.isEmpty) {
                 return ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
@@ -105,6 +124,35 @@ class NewsScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
+                  // Watchlist-pinned section. Only shown when at least one
+                  // headline mentions a watchlisted ticker. Renders ABOVE the
+                  // recency-grouped feed so users see their stuff first.
+                  if (watched.isNotEmpty) ...<Widget>[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(6, 14, 6, 8),
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(Icons.star,
+                              color: AppColors.gold, size: 14),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'FROM YOUR WATCHLIST',
+                            style: TextStyle(
+                              color: AppColors.gold,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    for (final item in watched)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _NewsRow(item: item),
+                      ),
+                  ],
                   for (final group in groups) ...<Widget>[
                     Padding(
                       padding:
