@@ -342,6 +342,46 @@ class _HeroCard extends StatelessWidget {
               fontSize: 13,
             ),
           ),
+          if (stats.spyReturnPct != null) ...<Widget>[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    Icons.show_chart,
+                    color: Colors.white.withValues(alpha: 0.6),
+                    size: 14,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'SPY same window: ',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    '${stats.spyReturnPct! >= 0 ? "+" : ""}'
+                    '${stats.spyReturnPct!.toStringAsFixed(2)}%',
+                    style: TextStyle(
+                      color: stats.spyReturnPct! >= 0
+                          ? const Color(0xFF8FD89F)
+                          : const Color(0xFFE07A6B),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

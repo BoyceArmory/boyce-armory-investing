@@ -28,6 +28,7 @@ class ShadowStats {
     required this.worstTradeSymbol,
     required this.worstTradePct,
     required this.byMode,
+    required this.spyReturnPct,
     required this.updatedAt,
   });
 
@@ -47,6 +48,8 @@ class ShadowStats {
   final String? worstTradeSymbol;
   final double? worstTradePct;
   final Map<String, ShadowModeStats> byMode;
+  /// SPY buy-and-hold return over the same window for benchmarking.
+  final double? spyReturnPct;
   final DateTime? updatedAt;
 
   static final ShadowStats empty = ShadowStats(
@@ -66,6 +69,7 @@ class ShadowStats {
     worstTradeSymbol: null,
     worstTradePct: null,
     byMode: const <String, ShadowModeStats>{},
+    spyReturnPct: null,
     updatedAt: null,
   );
 
@@ -93,6 +97,7 @@ class ShadowStats {
       worstTradeSymbol: j['worstTradeSymbol'] as String?,
       worstTradePct: (j['worstTradePct'] as num?)?.toDouble(),
       byMode: byMode,
+      spyReturnPct: (j['spyReturnPct'] as num?)?.toDouble(),
       updatedAt: DateTime.tryParse(j['updatedAt'] as String? ?? ''),
     );
   }

@@ -8,6 +8,9 @@ class RoutePaths {
   static const String signIn = '/sign-in';
   static const String signUp = '/sign-up';
   static const String forgotPassword = '/forgot-password';
+  /// Push opt-in priming. Shown once after first sign-up, before the
+  /// OS notification permission prompt.
+  static const String enableNotifications = '/enable-notifications';
 
   // Customer shell
   static const String home = '/home';
@@ -57,6 +60,12 @@ class RoutePaths {
   static const String alertDetailName = 'alert-detail';
   static const String alertDetail = '/alert/:alertId';
   static String alertDetailFor(String id) => '/alert/$id';
+
+  /// In-app chart for any ticker. Path params: symbol. Query params:
+  /// alertPrice, stopPrice, targetPrice (optional — drives overlay lines).
+  static const String chartName = 'chart';
+  static const String chart = '/chart/:symbol';
+  static String chartFor(String symbol) => '/chart/$symbol';
 
   static const String scannerDetailName = 'scanner-detail';
   static const String scannerDetail = '/scanner/:scannerId';

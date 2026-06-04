@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/auth_state_provider.dart';
+import '../services/analytics_service.dart';
 import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
 import '../../features/support/presentation/screens/support_ticket_screen.dart';
 import '../../features/alerts/presentation/screens/alert_detail_screen.dart';
@@ -15,6 +16,8 @@ import '../../features/admin/presentation/screens/backtest_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/sign_in_screen.dart';
 import '../../features/auth/presentation/screens/sign_up_screen.dart';
+import '../../features/chart/presentation/screens/ticker_chart_screen.dart';
+import '../../features/onboarding/presentation/screens/enable_notifications_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/chat/presentation/screens/chat_home_screen.dart';
 import '../../features/chat/presentation/screens/chat_room_screen.dart';
@@ -42,6 +45,10 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
     initialLocation: RoutePaths.splash,
     debugLogDiagnostics: false,
     refreshListenable: notifier,
+    // Firebase Analytics observer logs `screen_view` events automatically
+    // for every push/pop. Lets us measure which screens get traffic
+    // without manually instrumenting every nav call.
+    observers: <NavigatorObserver>[AnalyticsService.observer],
     redirect: (BuildContext context, GoRouterState state) {
       final bool bootstrapping = ref.read(authBootstrappingProvider);
       final bool signedIn =
@@ -91,6 +98,26 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
         path: RoutePaths.forgotPassword,
         builder: (BuildContext c, GoRouterState s) =>
             const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.enableNotifications,
+        builder: (BuildContext c, GoRouterState s) =>
+            const EnableNotificationsScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.chart,
+        name: RoutePaths.chartName,
+        builder: (BuildContext c, GoRouterState s) {
+          final String symbol =
+              s.pathParameters['symbol']?.toUpperCase() ?? '';
+          double? parse(String? v) => v == null ? null : double.tryParse(v);
+          return TickerChartScreen(
+            symbol: symbol,
+            alertPrice: parse(s.uri.queryParameters['alertPrice']),
+            stopPrice: parse(s.uri.queryParameters['stopPrice']),
+            targetPrice: parse(s.uri.queryParameters['targetPrice']),
+          );
+        },
       ),
 
       // Detail routes live outside the shell so they can use full-screen layouts.
