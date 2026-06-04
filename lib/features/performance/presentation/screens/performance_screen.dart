@@ -1,8 +1,10 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -86,6 +88,8 @@ class _Body extends StatelessWidget {
           eyebrow: 'Track record',
           title: 'Performance',
         ),
+        const SizedBox(height: 12),
+        _TrackRecordCTA(),
         const SizedBox(height: 16),
         _RangeChips(value: range, onChanged: onRangeChanged),
         const SizedBox(height: 14),
@@ -977,6 +981,58 @@ class _StreaksCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+//  TRACK RECORD CTA — links to the auto-tracked shadow trades feed
+// ===========================================================================
+class _TrackRecordCTA extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push(RoutePaths.trackRecord),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1714),
+          border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: <Widget>[
+            const Icon(Icons.auto_graph, color: AppColors.gold, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'SCANNER TRACK RECORD',
+                    style: TextStyle(
+                      color: AppColors.gold,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'What every A/A+ alert would have returned',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right,
+                color: AppColors.gold, size: 22),
+          ],
+        ),
       ),
     );
   }

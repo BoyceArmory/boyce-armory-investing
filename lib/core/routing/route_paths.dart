@@ -26,6 +26,10 @@ class RoutePaths {
   static const String backtest = '/backtest';
   static const String trades = '/trades';
   static const String performance = '/performance';
+  /// Scanner Track Record — auto-tracked simulated outcomes from every
+  /// A/A+ scanner alert. Visible to all signed-in users. Separate from
+  /// `/performance` which shows real human-taken trade history.
+  static const String trackRecord = '/track-record';
   static const String lessons = '/lessons';
   static const String notifications = '/notifications';
   static const String profile = '/profile';

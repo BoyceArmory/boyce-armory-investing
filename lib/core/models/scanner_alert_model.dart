@@ -46,6 +46,8 @@ class ScannerAlert extends Equatable {
     this.backtestAvgLossPct,
     this.earningsInDays,
     this.earningsDate,
+    this.chainAnalytics,
+    this.flow,
   });
 
   final String id;
@@ -153,6 +155,13 @@ class ScannerAlert extends Equatable {
   /// ISO date string (YYYY-MM-DD) of the next earnings, for display.
   final String? earningsDate;
 
+  /// Chain-level analytics computed at fire time (max pain, P/C, GEX).
+  /// Populated when Polygon Options Advanced is enabled.
+  final ChainAnalytics? chainAnalytics;
+  /// Options-flow summary on the suggested contract — direction, sweeps,
+  /// buy vs sell volume, largest single print.
+  final OptionsFlow? flow;
+
   bool get isBullish => direction == SetupDirection.bullish;
 
   double? get riskRewardRatio {
@@ -220,6 +229,12 @@ class ScannerAlert extends Equatable {
       backtestAvgLossPct: (m['backtestAvgLossPct'] as num?)?.toDouble(),
       earningsInDays: (m['earningsInDays'] as num?)?.toInt(),
       earningsDate: m['earningsDate'] as String?,
+      chainAnalytics: m['chainAnalytics'] is Map<String, dynamic>
+          ? ChainAnalytics.fromMap(m['chainAnalytics'] as Map<String, dynamic>)
+          : null,
+      flow: m['flow'] is Map<String, dynamic>
+          ? OptionsFlow.fromMap(m['flow'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -351,4 +366,88 @@ class TriggerSnapshot extends Equatable {
         sectorPerfPct,
         regime,
       ];
+}
+
+/// Chain-level analytics computed at scanner fire time. Powers the
+/// "MARKET CONTEXT" panel on alert detail — max pain, put/call, GEX.
+class ChainAnalytics extends Equatable {
+  const ChainAnalytics({
+    this.maxPainStrike,
+    this.putCallVolumeRatio,
+    this.putCallOiRatio,
+    this.netGexDollars,
+  });
+
+  /// Strike where the most options expire worthless. Stocks gravitate
+  /// toward this level near OPEX.
+  final double? maxPainStrike;
+  /// Today's put volume / call volume across the chain. >1.0 = put-heavy
+  /// (bearish positioning). <1.0 = call-heavy (bullish).
+  final double? putCallVolumeRatio;
+  /// Slower-moving: total put OI / total call OI.
+  final double? putCallOiRatio;
+  /// Net gamma exposure in dollars. Positive = mean-reversion regime;
+  /// negative = trend-amplifying.
+  final double? netGexDollars;
+
+  factory ChainAnalytics.fromMap(Map<String, dynamic> m) => ChainAnalytics(
+        maxPainStrike: (m['maxPainStrike'] as num?)?.toDouble(),
+        putCallVolumeRatio: (m['putCallVolumeRatio'] as num?)?.toDouble(),
+        putCallOiRatio: (m['putCallOiRatio'] as num?)?.toDouble(),
+        netGexDollars: (m['netGexDollars'] as num?)?.toDouble(),
+      );
+
+  bool get hasAnyData =>
+      maxPainStrike != null ||
+      putCallVolumeRatio != null ||
+      putCallOiRatio != null ||
+      netGexDollars != null;
+
+  @override
+  List<Object?> get props =>
+      [maxPainStrike, putCallVolumeRatio, putCallOiRatio, netGexDollars];
+}
+
+/// Options-flow summary on the suggested contract.
+class OptionsFlow extends Equatable {
+  const OptionsFlow({
+    this.direction,
+    this.sweepCount,
+    this.buyVolume,
+    this.sellVolume,
+    this.largestPrint,
+  });
+
+  /// 'bullish' | 'bearish' | 'neutral' — net flow direction from
+  /// aggressive trades.
+  final String? direction;
+  /// Number of sweep events detected (multi-exchange aggressive bursts).
+  final int? sweepCount;
+  /// Volume traded at/above ask (aggressive buys).
+  final int? buyVolume;
+  /// Volume traded at/below bid (aggressive sells).
+  final int? sellVolume;
+  /// Largest single trade size — block detection.
+  final int? largestPrint;
+
+  factory OptionsFlow.fromMap(Map<String, dynamic> m) => OptionsFlow(
+        direction: m['direction'] as String?,
+        sweepCount: (m['sweepCount'] as num?)?.toInt(),
+        buyVolume: (m['buyVolume'] as num?)?.toInt(),
+        sellVolume: (m['sellVolume'] as num?)?.toInt(),
+        largestPrint: (m['largestPrint'] as num?)?.toInt(),
+      );
+
+  bool get hasAnyData =>
+      direction != null ||
+      sweepCount != null ||
+      buyVolume != null ||
+      sellVolume != null;
+
+  bool get isBullish => direction == 'bullish';
+  bool get isBearish => direction == 'bearish';
+
+  @override
+  List<Object?> get props =>
+      [direction, sweepCount, buyVolume, sellVolume, largestPrint];
 }

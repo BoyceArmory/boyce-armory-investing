@@ -24,6 +24,7 @@ import '../../features/lessons/presentation/screens/lesson_section_screen.dart';
 import '../../features/lessons/presentation/screens/lessons_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/performance/presentation/screens/performance_screen.dart';
+import '../../features/performance/presentation/screens/scanner_track_record_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/scanner/presentation/screens/scanner_detail_screen.dart';
 import '../../features/scanner/presentation/screens/scanner_screen.dart';
@@ -197,6 +198,11 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             path: RoutePaths.performance,
             builder: (BuildContext c, GoRouterState s) =>
                 const PerformanceScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.trackRecord,
+            builder: (BuildContext c, GoRouterState s) =>
+                const ScannerTrackRecordScreen(),
           ),
           GoRoute(
             path: RoutePaths.lessons,

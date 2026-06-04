@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -156,12 +159,98 @@ class _ActiveTradesSectionState extends ConsumerState<_ActiveTradesSection> {
   }
 }
 
-class _ClosedTradesSection extends ConsumerWidget {
+class _ClosedTradesSection extends ConsumerStatefulWidget {
   const _ClosedTradesSection();
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ClosedTradesSection> createState() =>
+      _ClosedTradesSectionState();
+}
+
+class _ClosedTradesSectionState
+    extends ConsumerState<_ClosedTradesSection> {
+  Future<void> _openBulkImport() async {
+    final json = await showDialog<String>(
+      context: context,
+      builder: (_) => const _BulkImportDialog(),
+    );
+    if (json == null) return;
+    List<dynamic> parsed;
+    try {
+      final dynamic decoded = _safeJsonDecode(json);
+      // Accept either a top-level array OR {"trades": [...]}.
+      if (decoded is List) {
+        parsed = decoded;
+      } else if (decoded is Map && decoded['trades'] is List) {
+        parsed = decoded['trades'] as List;
+      } else {
+        throw const FormatException(
+            'Expected an array of trades or an object with a "trades" array');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Invalid JSON: $e'),
+            backgroundColor: AppColors.bearish),
+      );
+      return;
+    }
+    try {
+      final trades = parsed
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+      final res = await ref
+          .read(adminRepositoryProvider)
+          .bulkImportTrades(trades);
+      if (!mounted) return;
+      final imported = res['imported'] ?? 0;
+      final skipped = res['skipped'] ?? 0;
+      final errors = res['errors'] is List
+          ? (res['errors'] as List).length
+          : 0;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Imported $imported, skipped $skipped, errors $errors.'),
+          backgroundColor:
+              errors == 0 ? AppColors.bullish : AppColors.warning,
+        ),
+      );
+      ref.invalidate(closedTradesProvider);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Import failed: $e'),
+            backgroundColor: AppColors.bearish),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(closedTradesProvider);
-    return RefreshIndicator(
+    return Column(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: _openBulkImport,
+              icon: const Icon(Icons.file_upload_outlined,
+                  size: 16, color: AppColors.gold),
+              label: const Text('Bulk import JSON'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.gold,
+                textStyle: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
       color: AppColors.gold,
       backgroundColor: AppColors.graphite,
       onRefresh: () async {
@@ -228,6 +317,9 @@ class _ClosedTradesSection extends ConsumerWidget {
           );
         },
       ),
+    ),
+        ),
+      ],
     );
   }
 }
@@ -347,6 +439,164 @@ class _CloseTradeDialogState extends State<_CloseTradeDialog> {
             foregroundColor: AppColors.obsidian,
           ),
           child: const Text('Close trade'),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bulk import (closed trades)
+// ---------------------------------------------------------------------------
+
+/// Safe JSON decode that returns the parsed dynamic or rethrows a
+/// FormatException with a cleaner message. Wrapping `jsonDecode` lets the
+/// caller surface "Invalid JSON: …" snackbars instead of dart:core errors.
+dynamic _safeJsonDecode(String s) {
+  try {
+    return jsonDecode(s);
+  } on FormatException catch (e) {
+    throw FormatException(e.message);
+  }
+}
+
+/// Dialog for pasting an array of closed trades as JSON. Accepts either:
+///   [ {symbol, direction, entry, exit, ...}, ... ]
+/// or a wrapper:
+///   { "trades": [ {...}, ... ] }
+///
+/// Each trade should include at minimum: symbol, direction ("call"/"put" or
+/// "long"/"short"), entry, exit, closedAt (ISO string or epoch ms). An
+/// optional `idempotencyKey` lets you safely re-paste without dupes — the
+/// backend de-dupes on that key.
+class _BulkImportDialog extends StatefulWidget {
+  const _BulkImportDialog();
+  @override
+  State<_BulkImportDialog> createState() => _BulkImportDialogState();
+}
+
+class _BulkImportDialogState extends State<_BulkImportDialog> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final txt = data?.text;
+    if (txt == null || txt.isEmpty) return;
+    setState(() => _ctrl.text = txt);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.graphite,
+      title: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Bulk import closed trades',
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Paste from clipboard',
+            onPressed: _pasteFromClipboard,
+            icon: const Icon(Icons.content_paste,
+                color: AppColors.gold, size: 18),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 520,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Paste a JSON array of trades, or an object with a "trades" key.\n'
+              'Each trade: { symbol, direction, entry, exit, closedAt, '
+              'qty?, idempotencyKey?, contract? }',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+            ),
+            const SizedBox(height: 10),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 280),
+              child: TextField(
+                controller: _ctrl,
+                maxLines: null,
+                minLines: 10,
+                keyboardType: TextInputType.multiline,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                ),
+                decoration: InputDecoration(
+                  hintText: '[\n  {"symbol":"AAPL","direction":"call",'
+                      '"entry":189.50,"exit":192.30,'
+                      '"closedAt":"2026-05-30T20:01:00Z"}\n]',
+                  hintStyle: const TextStyle(
+                    color: AppColors.textTertiary,
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                  ),
+                  filled: true,
+                  fillColor: AppColors.obsidian,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        const BorderSide(color: AppColors.steel),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        const BorderSide(color: AppColors.steel),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        const BorderSide(color: AppColors.gold),
+                  ),
+                  contentPadding: const EdgeInsets.all(10),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final txt = _ctrl.text.trim();
+            if (txt.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Paste some JSON first')),
+              );
+              return;
+            }
+            Navigator.of(context).pop(txt);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.gold,
+            foregroundColor: AppColors.obsidian,
+          ),
+          child: const Text('Import'),
         ),
       ],
     );

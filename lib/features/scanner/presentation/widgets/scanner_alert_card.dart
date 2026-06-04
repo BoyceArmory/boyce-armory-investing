@@ -289,6 +289,22 @@ class _ExpandedSection extends StatelessWidget {
           if (alert.suggestedContract != null) ...<Widget>[
             const SizedBox(height: 12),
             _ContractLine(alert: alert),
+            if (_hasOptionsWarnings(alert)) ...<Widget>[
+              const SizedBox(height: 8),
+              _OptionsWarningsRow(alert: alert),
+            ],
+            if (alert.flow != null && alert.flow!.hasAnyData) ...<Widget>[
+              const SizedBox(height: 8),
+              _OptionsFlowPanel(flow: alert.flow!),
+            ],
+            if (alert.chainAnalytics != null &&
+                alert.chainAnalytics!.hasAnyData) ...<Widget>[
+              const SizedBox(height: 8),
+              _ChainAnalyticsPanel(
+                  analytics: alert.chainAnalytics!,
+                  accent: accent,
+                  currentPrice: alert.currentPrice),
+            ],
           ],
           if (onOpenDetail != null) ...<Widget>[
             const SizedBox(height: 12),
@@ -393,6 +409,12 @@ class _ContractLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = alert.suggestedContract!;
+    // When live Polygon Options data is present (delta + iv + mid), render
+    // the rich greeks / bid-ask / spread view. Otherwise fall back to the
+    // simple "CALL $315 · 2026-06-15" headline.
+    if (c.hasLiveData) {
+      return _LiveContractBlock(contract: c);
+    }
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: <Widget>[
@@ -409,6 +431,430 @@ class _ContractLine extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// Rich contract display — used when Polygon Options Advanced returns real
+/// greeks/IV/spread. Shows mid price, spread health, delta, IV, OI, vol.
+/// Right-aligned to match the rest of the card.
+class _LiveContractBlock extends StatelessWidget {
+  const _LiveContractBlock({required this.contract});
+  final OptionContract contract;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = contract;
+    final spreadHealthy = c.isTradeable;
+    final spreadColor = spreadHealthy
+        ? AppColors.bullish
+        : AppColors.bearish;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: <Widget>[
+              const Icon(Icons.local_offer_outlined,
+                  color: AppColors.gold, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                '${c.type.toUpperCase()} ${Formatters.priceCompact(c.strike)} · ${c.expiration}',
+                style: const TextStyle(
+                  color: AppColors.gold,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 2,
+            children: <Widget>[
+              if (c.mid != null)
+                _ContractStat(label: 'MID', value: '\$${c.mid!.toStringAsFixed(2)}'),
+              if (c.bid != null && c.ask != null)
+                _ContractStat(
+                  label: 'B/A',
+                  value: '${c.bid!.toStringAsFixed(2)} × ${c.ask!.toStringAsFixed(2)}',
+                ),
+              if (c.spreadPct != null)
+                _ContractStat(
+                  label: 'SPREAD',
+                  value: '${c.spreadPct!.toStringAsFixed(1)}%',
+                  color: spreadColor,
+                ),
+              if (c.delta != null)
+                _ContractStat(label: 'Δ', value: c.delta!.toStringAsFixed(2)),
+              if (c.iv != null)
+                _ContractStat(label: 'IV', value: '${(c.iv! * 100).toStringAsFixed(0)}%'),
+              if (c.dte != null)
+                _ContractStat(label: 'DTE', value: '${c.dte}d'),
+              if (c.openInterest != null)
+                _ContractStat(label: 'OI', value: _compactNum(c.openInterest!)),
+              if (c.volume != null)
+                _ContractStat(label: 'VOL', value: _compactNum(c.volume!)),
+            ],
+          ),
+          if (!spreadHealthy) ...<Widget>[
+            const SizedBox(height: 4),
+            const Text(
+              'Wide spread — consider a different strike.',
+              style: TextStyle(
+                color: AppColors.bearish,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ContractStat extends StatelessWidget {
+  const _ContractStat({
+    required this.label,
+    required this.value,
+    this.color,
+  });
+  final String label;
+  final String value;
+  final Color? color;
+  @override
+  Widget build(BuildContext context) {
+    final v = color ?? AppColors.gold;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFFB6BBC4),
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
+          ),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          value,
+          style: TextStyle(
+            color: v,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _compactNum(int n) {
+  if (n >= 1_000_000) return '${(n / 1_000_000).toStringAsFixed(1)}M';
+  if (n >= 1_000) return '${(n / 1_000).toStringAsFixed(1)}k';
+  return n.toString();
+}
+
+bool _hasOptionsWarnings(ScannerAlert alert) {
+  final c = alert.suggestedContract;
+  if (c == null) return false;
+  return c.isZeroDte == true ||
+      c.earningsBeforeExpiry == true ||
+      (c.ivRank != null && (c.ivRank! >= 80 || c.ivRank! <= 20));
+}
+
+/// Inline row of contextual warning chips: 0DTE risk, earnings IV crush
+/// risk, expensive premium (IV rank ≥80), or cheap premium (≤20).
+class _OptionsWarningsRow extends StatelessWidget {
+  const _OptionsWarningsRow({required this.alert});
+  final ScannerAlert alert;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = alert.suggestedContract!;
+    final chips = <Widget>[];
+    if (c.isZeroDte == true) {
+      chips.add(const _WarnChip(
+        label: '0DTE',
+        tone: AppColors.bearish,
+        tooltip: 'Expires today — extreme gamma/theta risk.',
+      ));
+    }
+    if (c.earningsBeforeExpiry == true) {
+      chips.add(const _WarnChip(
+        label: 'IV CRUSH',
+        tone: AppColors.bearish,
+        tooltip: 'Earnings before expiry — premium will crush post-print.',
+      ));
+    }
+    if (c.ivRank != null) {
+      if (c.ivRank! >= 80) {
+        chips.add(_WarnChip(
+          label: 'IV RANK ${c.ivRank!.toStringAsFixed(0)}',
+          tone: AppColors.warning,
+          tooltip: 'Premium is in the top quintile of past year — expensive.',
+        ));
+      } else if (c.ivRank! <= 20) {
+        chips.add(_WarnChip(
+          label: 'IV RANK ${c.ivRank!.toStringAsFixed(0)}',
+          tone: AppColors.bullish,
+          tooltip: 'Premium is in the bottom quintile — cheap.',
+        ));
+      }
+    }
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Wrap(
+      alignment: WrapAlignment.end,
+      spacing: 6,
+      runSpacing: 6,
+      children: chips,
+    );
+  }
+}
+
+class _WarnChip extends StatelessWidget {
+  const _WarnChip({required this.label, required this.tone, this.tooltip});
+  final String label;
+  final Color tone;
+  final String? tooltip;
+  @override
+  Widget build(BuildContext context) {
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: tone.withValues(alpha: 0.6)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: tone,
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.6,
+        ),
+      ),
+    );
+    return tooltip == null ? chip : Tooltip(message: tooltip!, child: chip);
+  }
+}
+
+/// Aggressive-flow direction summary on the suggested contract.
+/// Shows buy/sell split, sweep count, biggest print.
+class _OptionsFlowPanel extends StatelessWidget {
+  const _OptionsFlowPanel({required this.flow});
+  final OptionsFlow flow;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = flow.isBullish
+        ? AppColors.bullish
+        : flow.isBearish
+            ? AppColors.bearish
+            : AppColors.textSecondary;
+    final dirLabel = flow.isBullish
+        ? 'BULLISH'
+        : flow.isBearish
+            ? 'BEARISH'
+            : 'NEUTRAL';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: tone.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: <Widget>[
+              const Text(
+                'FLOW',
+                style: TextStyle(
+                  color: Color(0xFFB6BBC4),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                dirLabel,
+                style: TextStyle(
+                  color: tone,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if ((flow.sweepCount ?? 0) > 0) ...<Widget>[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: tone.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${flow.sweepCount} SWEEP${flow.sweepCount == 1 ? "" : "S"}',
+                    style: TextStyle(
+                      color: tone,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 3),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            children: <Widget>[
+              if (flow.buyVolume != null)
+                _ContractStat(
+                    label: 'BUYS', value: _compactNum(flow.buyVolume!)),
+              if (flow.sellVolume != null)
+                _ContractStat(
+                    label: 'SELLS', value: _compactNum(flow.sellVolume!)),
+              if (flow.largestPrint != null)
+                _ContractStat(
+                    label: 'BIG', value: _compactNum(flow.largestPrint!)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Chain-wide market context: max pain, put/call ratio, net GEX.
+class _ChainAnalyticsPanel extends StatelessWidget {
+  const _ChainAnalyticsPanel({
+    required this.analytics,
+    required this.accent,
+    this.currentPrice,
+  });
+  final ChainAnalytics analytics;
+  final Color accent;
+  final double? currentPrice;
+
+  String _gexLabel(double dollars) {
+    final absM = dollars.abs() / 1_000_000;
+    final sign = dollars >= 0 ? '+' : '-';
+    return '$sign\$${absM.toStringAsFixed(0)}M';
+  }
+
+  String _regimeLabel(double? gex) {
+    if (gex == null) return '';
+    if (gex > 50_000_000) return 'mean revert';
+    if (gex < -50_000_000) return 'amplify';
+    return 'neutral';
+  }
+
+  String _pcInterp(double? ratio) {
+    if (ratio == null) return '';
+    if (ratio < 0.7) return 'call-heavy';
+    if (ratio > 1.3) return 'put-heavy';
+    return 'balanced';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.textTertiary.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Text(
+            'CHAIN CONTEXT',
+            style: TextStyle(
+              color: Color(0xFFB6BBC4),
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 4,
+            children: <Widget>[
+              if (analytics.maxPainStrike != null)
+                _ContractStat(
+                  label: 'MAX PAIN',
+                  value: '\$${analytics.maxPainStrike!.toStringAsFixed(0)}',
+                ),
+              if (analytics.putCallVolumeRatio != null)
+                _ContractStat(
+                  label: 'P/C VOL',
+                  value: analytics.putCallVolumeRatio!.toStringAsFixed(2),
+                  color: analytics.putCallVolumeRatio! > 1.3
+                      ? AppColors.bearish
+                      : analytics.putCallVolumeRatio! < 0.7
+                          ? AppColors.bullish
+                          : null,
+                ),
+              if (analytics.netGexDollars != null)
+                _ContractStat(
+                  label: 'GEX',
+                  value: _gexLabel(analytics.netGexDollars!),
+                  color: analytics.netGexDollars! > 0
+                      ? AppColors.bullish
+                      : AppColors.bearish,
+                ),
+            ],
+          ),
+          if (analytics.netGexDollars != null ||
+              analytics.putCallVolumeRatio != null) ...<Widget>[
+            const SizedBox(height: 4),
+            Text(
+              _composeReadout(analytics),
+              style: const TextStyle(
+                color: Color(0xFFB6BBC4),
+                fontSize: 10,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _composeReadout(ChainAnalytics a) {
+    final parts = <String>[];
+    if (a.netGexDollars != null) {
+      parts.add('${_regimeLabel(a.netGexDollars)} regime');
+    }
+    if (a.putCallVolumeRatio != null) {
+      parts.add(_pcInterp(a.putCallVolumeRatio));
+    }
+    return parts.join(' · ');
   }
 }
 
