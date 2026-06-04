@@ -94,7 +94,7 @@ class _HotTradeCardState extends State<HotTradeCard> {
           ),
           AlertActionBar(
             alertId: a.id,
-            grade: a.grade?.toString().split('.').last ?? 'A',
+            grade: a.grade?.wire ?? 'A',
           ),
           const SizedBox(height: 8),
           _Footer(alert: a, expanded: _expanded),
