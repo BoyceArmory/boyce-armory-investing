@@ -15,7 +15,13 @@ import '../providers/scanner_providers.dart';
 import '../widgets/scanner_alert_card.dart';
 import '../widgets/scanner_card_skeleton.dart';
 
-/// 4-tab scanner screen: All / Day / Swing / LEAPS.
+/// 5-tab scanner screen: All / 0DTE / Day / Swing / LEAPS.
+///
+/// 0DTE is a derived view on top of the day-mode stream — it filters to
+/// alerts whose suggested contract expires today (SPY/QQQ/IWM/DIA index
+/// options + any other ticker that happens to have a 0DTE chain). The tab
+/// is positioned right after All so customers see the highest-conviction
+/// intraday options plays first.
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
 
@@ -28,15 +34,28 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   late final TabController _tabs;
   bool _adminView = false;
 
-  /// Tab index 0 = All (no mode filter), 1/2/3 = day/swing/leaps.
+  // Sentinel index for the 0DTE filter — it's a derived view on the day
+  // stream, not a real ScannerMode. _watchForCurrentTab() special-cases
+  // this index to apply the isZeroDte client-side filter.
+  static const int _zeroDteTabIndex = 1;
+
+  /// Tab modes per index. Index 1 is the 0DTE derived filter — handled
+  /// separately in _watchForCurrentTab().
   static const List<ScannerMode?> _tabModes = <ScannerMode?>[
-    null,
-    ScannerMode.day,
+    null,             // All
+    ScannerMode.day,  // 0DTE (filtered)
+    ScannerMode.day,  // Day
     ScannerMode.swing,
     ScannerMode.leaps,
   ];
 
-  static const List<String> _tabLabels = <String>['All', 'Day', 'Swing', 'LEAPS'];
+  static const List<String> _tabLabels = <String>[
+    'All',
+    '0DTE',
+    'Day',
+    'Swing',
+    'LEAPS',
+  ];
 
   @override
   void initState() {
@@ -54,8 +73,27 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   }
 
   AsyncValue<List<ScannerAlert>> _watchForCurrentTab() {
-    final ScannerMode? mode = _tabModes[_tabs.index];
-    if (_adminView && ref.read(isAdminProvider)) {
+    final int tabIndex = _tabs.index;
+    final ScannerMode? mode = _tabModes[tabIndex];
+    final bool useAdmin = _adminView && ref.read(isAdminProvider);
+
+    // 0DTE tab: pull the day-mode stream and apply an in-memory filter
+    // for alerts whose suggested contract expires today. This avoids a
+    // separate backend endpoint — the data is already in the day stream,
+    // we just slice it. Admin "All" toggle still works: it swaps the
+    // upstream source to admin_only results before filtering.
+    if (tabIndex == _zeroDteTabIndex) {
+      final AsyncValue<List<ScannerAlert>> upstream = useAdmin
+          ? ref.watch(adminScannerResultsByModeProvider(ScannerMode.day))
+          : ref.watch(publicScannerAlertsByModeProvider(ScannerMode.day));
+      return upstream.whenData(
+        (List<ScannerAlert> alerts) => alerts
+            .where((ScannerAlert a) => a.suggestedContract?.isZeroDte == true)
+            .toList(growable: false),
+      );
+    }
+
+    if (useAdmin) {
       return mode == null
           ? ref.watch(adminScannerResultsProvider)
           : ref.watch(adminScannerResultsByModeProvider(mode));
@@ -65,7 +103,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         : ref.watch(publicScannerAlertsByModeProvider(mode));
   }
 
+  bool get _isZeroDteTab => _tabs.index == _zeroDteTabIndex;
+
   String _emptyEyebrowFor(ScannerMode? mode) {
+    if (_isZeroDteTab) return '0DTE TAB QUIET';
     if (mode == null) return 'NO ACTIVE SETUPS';
     return switch (mode) {
       ScannerMode.day => 'DAY SCANNER QUIET',
@@ -75,6 +116,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   }
 
   String _emptyTitleFor(ScannerMode? mode) {
+    if (_isZeroDteTab) return 'No 0DTE plays right now';
     if (mode == null) return 'No setups firing right now';
     return switch (mode) {
       ScannerMode.day => 'No day setups',
@@ -84,6 +126,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   }
 
   String _emptyMessageFor(ScannerMode? mode) {
+    if (_isZeroDteTab) {
+      return 'Same-day-expiry option setups appear here when the scanner fires on SPY / QQQ / IWM / DIA during market hours. New plays show up as soon as they trigger.';
+    }
     if (mode == null) {
       return 'The live scanner publishes A+ setups here automatically. Pull down to refresh, or check back during US market hours (9:30 AM – 4:00 PM ET).';
     }
@@ -181,11 +226,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                             eyebrow: _emptyEyebrowFor(mode),
                             title: _emptyTitleFor(mode),
                             message: _emptyMessageFor(mode),
-                            icon: mode == ScannerMode.day
-                                ? Icons.bolt_outlined
-                                : mode == ScannerMode.leaps
-                                    ? Icons.calendar_month_outlined
-                                    : Icons.radar_outlined,
+                            icon: _isZeroDteTab
+                                ? Icons.flash_on
+                                : mode == ScannerMode.day
+                                    ? Icons.bolt_outlined
+                                    : mode == ScannerMode.leaps
+                                        ? Icons.calendar_month_outlined
+                                        : Icons.radar_outlined,
                           ),
                         ],
                       );
