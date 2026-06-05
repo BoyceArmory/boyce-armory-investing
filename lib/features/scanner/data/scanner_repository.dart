@@ -48,9 +48,30 @@ class ScannerRepository {
         .snapshots()
         .map(_mapSnapshot)
         .map((List<ScannerAlert> alerts) {
-      final List<ScannerAlert> visible = alerts
-          .where((ScannerAlert a) => a.stillValid != false)
-          .toList();
+      // Today's session start in the user's local timezone. We treat a day
+      // as "fresh" if it landed after this morning's market open. This
+      // belt-and-suspenders alongside the backend daily-reset job — even
+      // if the reset write fails for a doc, the UI still won't show
+      // yesterday's day-mode card today.
+      final DateTime now = DateTime.now();
+      final DateTime todayStart = DateTime(now.year, now.month, now.day);
+
+      final List<ScannerAlert> visible = alerts.where((ScannerAlert a) {
+        // Filter out anything the decay/reset jobs have invalidated.
+        if (a.stillValid == false) return false;
+
+        // DAY MODE HARDENING:
+        // - Drop yesterday's day cards (they're intraday-only; not actionable
+        //   the next morning even if invalidation missed them).
+        // - Drop cards that didn't enrich properly (no live snapshot). These
+        //   come from older publishes before the session-aware snapshot fix
+        //   and look broken on screen (no PRICE / VOL / % chips).
+        if (a.mode == ScannerMode.day) {
+          if (a.createdAt.isBefore(todayStart)) return false;
+          if (a.currentPrice == null) return false;
+        }
+        return true;
+      }).toList();
       visible.sort((ScannerAlert a, ScannerAlert b) {
         final int scoreCmp = b.score.compareTo(a.score);
         if (scoreCmp != 0) return scoreCmp;

@@ -1,7 +1,7 @@
 name: boyce_armory
 description: Boyce Armory Investing - premium options trading education + live scanner alerts.
 publish_to: "none"
-version: 2.2.2+19
+version: 2.2.2+21
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

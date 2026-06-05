@@ -35,7 +35,25 @@ class AlertsRepository {
         .limit(limit)
         .snapshots()
         .map(_mapSnapshot)
+        .map(_hardenDayCards)
         .map(_sortByConfidence);
+  }
+
+  /// Drop day-mode hot-trade cards that are either (a) from a previous
+  /// session — daily reset writes isHot:false on yesterday's docs, but this
+  /// is belt-and-suspenders for any write that missed — or (b) lack the
+  /// live snapshot fields, which makes the card render as a broken "—".
+  /// Swing / LEAPS are unaffected because they're multi-day setups.
+  List<TradeAlert> _hardenDayCards(List<TradeAlert> alerts) {
+    final DateTime now = DateTime.now();
+    final DateTime todayStart = DateTime(now.year, now.month, now.day);
+    return alerts.where((TradeAlert a) {
+      if (a.mode == ScannerMode.day) {
+        if (a.createdAt.isBefore(todayStart)) return false;
+        if (a.currentPrice == null) return false;
+      }
+      return true;
+    }).toList(growable: false);
   }
 
   /// Rank alerts strongest → weakest. We still page by recency at the
