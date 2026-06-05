@@ -101,6 +101,7 @@ class ClosedTrade extends Equatable {
     this.kind,
     this.mode,
     this.contractLabel,
+    this.source,
   });
 
   final String id;
@@ -114,6 +115,16 @@ class ClosedTrade extends Equatable {
   final String? kind;
   final String? mode;
   final String? contractLabel;
+
+  /// Origin of the closed trade. 'shadow' = scanner-tracked simulated outcome
+  /// (auto-opened on every A/A+ alert). Anything else (typically 'real' or
+  /// null) is a real human-taken trade closed by an admin via the trade
+  /// management surface. The Performance screen splits these into two tabs:
+  /// user trades on "My Trades", shadow trades on "Scanner Track Record".
+  final String? source;
+
+  bool get isShadow => source == 'shadow';
+  bool get isUserTrade => !isShadow;
 
   bool get isWin => result == 'win';
   bool get isLoss => result == 'loss';
@@ -164,6 +175,7 @@ class ClosedTrade extends Equatable {
       kind: m['kind'] as String?,
       mode: m['mode'] as String?,
       contractLabel: contract,
+      source: m['source'] as String?,
     );
   }
 
@@ -180,5 +192,6 @@ class ClosedTrade extends Equatable {
         kind,
         mode,
         contractLabel,
+        source,
       ];
 }

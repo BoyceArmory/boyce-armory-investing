@@ -101,6 +101,14 @@
       ]
     },
     {
+      "collectionGroup": "closed_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "source", "order": "ASCENDING" },
+        { "fieldPath": "closedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "active_trades",
       "queryScope": "COLLECTION",
       "fields": [

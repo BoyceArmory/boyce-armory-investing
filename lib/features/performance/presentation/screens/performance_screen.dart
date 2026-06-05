@@ -1,10 +1,8 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
 import '../../../../shared/widgets/empty_state.dart';
@@ -34,31 +32,129 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final AsyncValue<List<ClosedTrade>> tradesAsync =
-        ref.watch(recentClosedTradesProvider);
+    // Two-tab layout: "My Trades" surfaces real human-taken positions; the
+    // "Scanner Track Record" tab surfaces the auto-tracked shadow trade
+    // outcomes that the scanner opens on every A/A+ alert. Splitting them
+    // makes the user's own P&L not get drowned out by the much higher
+    // shadow-trade volume — and gives the scanner its own dedicated view
+    // for proof-of-concept material.
+    final AsyncValue<List<ClosedTrade>> userTradesAsync =
+        ref.watch(userClosedTradesProvider);
+    final AsyncValue<List<ClosedTrade>> shadowTradesAsync =
+        ref.watch(shadowClosedTradesProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.obsidian,
-      body: SafeArea(
-        child: tradesAsync.when(
-          loading: () => const Center(child: LoadingIndicator()),
-          error: (Object e, _) => ErrorState(
-            message: 'Could not load performance',
-            details: '$e',
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.obsidian,
+        body: SafeArea(
+          child: Column(
+            children: <Widget>[
+              const _PerformanceTabBar(),
+              Expanded(
+                child: TabBarView(
+                  children: <Widget>[
+                    _TabContent(
+                      tradesAsync: userTradesAsync,
+                      kind: _PerfTabKind.user,
+                      range: _range,
+                      onRangeChanged: (PerfRange r) =>
+                          setState(() => _range = r),
+                    ),
+                    _TabContent(
+                      tradesAsync: shadowTradesAsync,
+                      kind: _PerfTabKind.scanner,
+                      range: _range,
+                      onRangeChanged: (PerfRange r) =>
+                          setState(() => _range = r),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          data: (List<ClosedTrade> raw) {
-            final List<ClosedTrade> filtered = _range.filter(raw);
-            final PerfAnalytics a = PerfAnalytics.fromTrades(filtered);
-            return _Body(
-              all: raw,
-              filtered: filtered,
-              analytics: a,
-              range: _range,
-              onRangeChanged: (PerfRange r) => setState(() => _range = r),
-            );
-          },
         ),
       ),
+    );
+  }
+}
+
+enum _PerfTabKind { user, scanner }
+
+/// Top-of-screen tab bar used to swap between "My Trades" (real positions)
+/// and "Scanner Track Record" (auto-tracked simulated alert outcomes).
+class _PerformanceTabBar extends StatelessWidget {
+  const _PerformanceTabBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.obsidian,
+        border: Border(
+          bottom: BorderSide(color: AppColors.steel, width: 1),
+        ),
+      ),
+      child: const TabBar(
+        labelColor: AppColors.gold,
+        unselectedLabelColor: AppColors.textSecondary,
+        indicatorColor: AppColors.gold,
+        indicatorWeight: 2.5,
+        labelStyle: TextStyle(
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
+          fontSize: 12.5,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+          fontSize: 12.5,
+        ),
+        tabs: <Widget>[
+          Tab(text: 'MY TRADES'),
+          Tab(text: 'SCANNER RECORD'),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shared body wrapper — feeds either the user-trades or shadow-trades
+/// stream into the existing _Body widget. Centralises the loading / error /
+/// empty paths so the two tabs stay in sync.
+class _TabContent extends StatelessWidget {
+  const _TabContent({
+    required this.tradesAsync,
+    required this.kind,
+    required this.range,
+    required this.onRangeChanged,
+  });
+
+  final AsyncValue<List<ClosedTrade>> tradesAsync;
+  final _PerfTabKind kind;
+  final PerfRange range;
+  final ValueChanged<PerfRange> onRangeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return tradesAsync.when(
+      loading: () => const Center(child: LoadingIndicator()),
+      error: (Object e, _) => ErrorState(
+        message: 'Could not load performance',
+        details: '$e',
+      ),
+      data: (List<ClosedTrade> raw) {
+        final List<ClosedTrade> filtered = range.filter(raw);
+        final PerfAnalytics a = PerfAnalytics.fromTrades(filtered);
+        return _Body(
+          all: raw,
+          filtered: filtered,
+          analytics: a,
+          range: range,
+          onRangeChanged: onRangeChanged,
+          kind: kind,
+        );
+      },
     );
   }
 }
@@ -70,6 +166,7 @@ class _Body extends StatelessWidget {
     required this.analytics,
     required this.range,
     required this.onRangeChanged,
+    required this.kind,
   });
 
   final List<ClosedTrade> all;
@@ -77,6 +174,9 @@ class _Body extends StatelessWidget {
   final PerfAnalytics analytics;
   final PerfRange range;
   final ValueChanged<PerfRange> onRangeChanged;
+  final _PerfTabKind kind;
+
+  bool get _isScanner => kind == _PerfTabKind.scanner;
 
   @override
   Widget build(BuildContext context) {
@@ -84,12 +184,14 @@ class _Body extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
       children: <Widget>[
-        const SectionHeader(
-          eyebrow: 'Track record',
-          title: 'Performance',
+        SectionHeader(
+          eyebrow: _isScanner ? 'Scanner track record' : 'Track record',
+          title: _isScanner ? 'Scanner performance' : 'My performance',
         ),
-        const SizedBox(height: 12),
-        _TrackRecordCTA(),
+        if (_isScanner) ...<Widget>[
+          const SizedBox(height: 12),
+          const _SimulatedDisclosure(),
+        ],
         const SizedBox(height: 16),
         _RangeChips(value: range, onChanged: onRangeChanged),
         const SizedBox(height: 14),
@@ -987,52 +1089,50 @@ class _StreaksCard extends StatelessWidget {
 }
 
 // ===========================================================================
-//  TRACK RECORD CTA — links to the auto-tracked shadow trades feed
+//  SIMULATED DISCLOSURE — shown at the top of the Scanner Record tab so
+//  customers understand the numbers below are auto-tracked simulated
+//  outcomes, not real money traded. Apple guideline 2.3.1 + 1.2 friendly.
 // ===========================================================================
-class _TrackRecordCTA extends StatelessWidget {
+class _SimulatedDisclosure extends StatelessWidget {
+  const _SimulatedDisclosure();
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push(RoutePaths.trackRecord),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1714),
-          border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: <Widget>[
-            const Icon(Icons.auto_graph, color: AppColors.gold, size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'SCANNER TRACK RECORD',
-                    style: TextStyle(
-                      color: AppColors.gold,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.4,
-                    ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1714),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(Icons.auto_graph, color: AppColors.gold, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  'AUTO-TRACKED · SIMULATED',
+                  style: TextStyle(
+                    color: AppColors.gold,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.4,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'What every A/A+ alert would have returned',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 12,
-                    ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'What every A / A+ alert would have returned if taken automatically. Not financial advice.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 12,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const Icon(Icons.chevron_right,
-                color: AppColors.gold, size: 22),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
