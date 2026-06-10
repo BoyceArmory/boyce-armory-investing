@@ -39,18 +39,19 @@ class AlertsRepository {
         .map(_sortByConfidence);
   }
 
-  /// Drop day-mode hot-trade cards that are either (a) from a previous
-  /// session — daily reset writes isHot:false on yesterday's docs, but this
-  /// is belt-and-suspenders for any write that missed — or (b) lack the
-  /// live snapshot fields, which makes the card render as a broken "—".
-  /// Swing / LEAPS are unaffected because they're multi-day setups.
+  /// Drop day-mode hot-trade cards that are clearly stale. Relaxed
+  /// June 2026: only require currentPrice if the alert is also >1 hour
+  /// old. Fresh alerts pass through even if the snapshot enrichment
+  /// hasn't landed yet — the card renders with "—" for the price chip
+  /// rather than getting hidden entirely.
   List<TradeAlert> _hardenDayCards(List<TradeAlert> alerts) {
     final DateTime now = DateTime.now();
     final DateTime todayStart = DateTime(now.year, now.month, now.day);
     return alerts.where((TradeAlert a) {
       if (a.mode == ScannerMode.day) {
         if (a.createdAt.isBefore(todayStart)) return false;
-        if (a.currentPrice == null) return false;
+        final Duration age = now.difference(a.createdAt);
+        if (age.inMinutes > 60 && a.currentPrice == null) return false;
       }
       return true;
     }).toList(growable: false);

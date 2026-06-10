@@ -575,7 +575,9 @@ class _AboutSection extends StatelessWidget {
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                     fontSize: 14)),
-            trailing: const Text('2.1.0 (14)',
+            // NOTE: hardcoded — keep in sync with pubspec.yaml version on
+            // every release. Long-term fix: read from package_info_plus.
+            trailing: const Text('2.2.3 (26)',
                 style:
                     TextStyle(color: AppColors.textSecondary, fontSize: 13)),
           ),

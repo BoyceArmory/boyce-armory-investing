@@ -60,15 +60,19 @@ class ScannerRepository {
         // Filter out anything the decay/reset jobs have invalidated.
         if (a.stillValid == false) return false;
 
-        // DAY MODE HARDENING:
-        // - Drop yesterday's day cards (they're intraday-only; not actionable
+        // DAY MODE HARDENING (relaxed June 2026):
+        // - Drop yesterday's day cards (intraday-only; not actionable
         //   the next morning even if invalidation missed them).
-        // - Drop cards that didn't enrich properly (no live snapshot). These
-        //   come from older publishes before the session-aware snapshot fix
-        //   and look broken on screen (no PRICE / VOL / % chips).
+        // - The earlier "drop if currentPrice == null" check was too
+        //   aggressive — it hid every published day alert during the
+        //   minutes between Firestore write and snapshot enrichment.
+        //   New rule: only hide for missing currentPrice if the alert is
+        //   ALSO more than 1 hour old. Fresh alerts pass through even if
+        //   the snapshot hasn't fully landed.
         if (a.mode == ScannerMode.day) {
           if (a.createdAt.isBefore(todayStart)) return false;
-          if (a.currentPrice == null) return false;
+          final Duration age = DateTime.now().difference(a.createdAt);
+          if (age.inMinutes > 60 && a.currentPrice == null) return false;
         }
         return true;
       }).toList();
