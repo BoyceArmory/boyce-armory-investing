@@ -58,6 +58,11 @@ dependencies:
   # the same on iOS and Android.
   fl_chart: ^0.69.0
 
+  # Reads version + build number from the platform at runtime so the
+  # Settings > About row stops drifting from pubspec.yaml on every
+  # release. Single .fromPlatform() call cached behind a provider.
+  package_info_plus: ^8.0.0
+
 dev_dependencies:
   flutter_lints: ^4.0.0
   flutter_test:

@@ -7,6 +7,7 @@ import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../data/shadow_models.dart';
 import '../providers/performance_providers.dart';
+import '../../../../core/errors/swallowed_error.dart';
 
 /// Scanner Track Record screen — customer-facing view of what every
 /// A+ scanner alert WOULD have returned if taken automatically.
@@ -129,7 +130,7 @@ class _ScannerTrackRecordScreenState
               const SizedBox(height: 10),
               openAsync.when(
                 loading: () => const SizedBox.shrink(),
-                error: (Object _, __) => const SizedBox.shrink(),
+                error: (Object e, StackTrace s) => swallowError(e, s, where: 'performance.scanner_track_record'),
                 data: (List<ShadowTradeRecord> list) =>
                     _OpenList(trades: list),
               ),
@@ -138,7 +139,7 @@ class _ScannerTrackRecordScreenState
               const SizedBox(height: 10),
               recentAsync.when(
                 loading: () => const SizedBox.shrink(),
-                error: (Object _, __) => const SizedBox.shrink(),
+                error: (Object e, StackTrace s) => swallowError(e, s, where: 'performance.scanner_track_record'),
                 data: (List<ShadowTradeRecord> list) =>
                     _RecentList(trades: list),
               ),

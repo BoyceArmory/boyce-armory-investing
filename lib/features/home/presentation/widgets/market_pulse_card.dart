@@ -6,6 +6,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../data/home_overview_model.dart';
 import '../providers/home_providers.dart';
+import '../../../../core/errors/swallowed_error.dart';
 
 /// SPY / QQQ / DIA card. Auto-refreshes every 30s via the home overview
 /// stream. Tap to force-refresh.
@@ -86,7 +87,7 @@ class MarketPulseCard extends ConsumerWidget {
                   right: 14,
                   child: async.when(
                     loading: () => const SizedBox.shrink(),
-                    error: (Object e, StackTrace s) => const SizedBox.shrink(),
+                    error: (Object e, StackTrace s) => swallowError(e, s, where: 'home.market_pulse'),
                     data: (HomeOverview ov) =>
                         _SessionBadge(status: ov.marketStatus),
                   ),

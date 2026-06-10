@@ -68,8 +68,28 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? body,
   }) async {
+    // First attempt with the cached ID token. On 401 we force a token
+    // refresh and retry exactly once. This covers the edge case where
+    // the cached token JUST expired between our getIdToken() call and
+    // the server validating it - happens on long-lived sessions or
+    // when the device clock skews. Without this retry the user sees
+    // a one-shot ApiException(401) error and has to manually back out
+    // and re-tap. Retry once, then give up.
+    http.Response r = await _attempt(method, path, body: body, forceRefresh: false);
+    if (r.statusCode == 401 && _auth.currentUser != null) {
+      r = await _attempt(method, path, body: body, forceRefresh: true);
+    }
+    return r;
+  }
+
+  Future<http.Response> _attempt(
+    String method,
+    String path, {
+    Map<String, dynamic>? body,
+    required bool forceRefresh,
+  }) async {
     final Uri url = Uri.parse('${ApiConfig.baseUrl}$path');
-    final Map<String, String> headers = await _headers();
+    final Map<String, String> headers = await _headers(forceRefresh: forceRefresh);
     final String? jsonBody = body == null ? null : jsonEncode(body);
 
     Future<http.Response> futureRes;
@@ -92,13 +112,16 @@ class ApiClient {
     return futureRes.timeout(ApiConfig.timeout);
   }
 
-  Future<Map<String, String>> _headers() async {
+  Future<Map<String, String>> _headers({bool forceRefresh = false}) async {
     final Map<String, String> h = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
     try {
-      final String? token = await _auth.currentUser?.getIdToken();
+      // forceRefresh=true on retry asks Firebase to mint a fresh token
+      // server-side rather than returning a cached one. Used after a
+      // 401 to recover from JUST-expired tokens.
+      final String? token = await _auth.currentUser?.getIdToken(forceRefresh);
       if (token != null && token.isNotEmpty) {
         h['Authorization'] = 'Bearer $token';
       }

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/providers/auth_state_provider.dart';
+import '../../../../core/providers/service_providers.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/responsive_container.dart';
@@ -575,11 +576,21 @@ class _AboutSection extends StatelessWidget {
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                     fontSize: 14)),
-            // NOTE: hardcoded — keep in sync with pubspec.yaml version on
-            // every release. Long-term fix: read from package_info_plus.
-            trailing: const Text('2.2.3 (26)',
-                style:
-                    TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            // Reads version + build at runtime from the platform via
+            // package_info_plus. Replaces the prior hardcoded literal
+            // that drifted from pubspec on every release.
+            trailing: ref.watch(appInfoProvider).when(
+                  loading: () => const Text('—',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 13)),
+                  error: (_, __) => const Text('—',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 13)),
+                  data: (({String version, String build}) info) => Text(
+                      '${info.version} (${info.build})',
+                      style: const TextStyle(
+                          color: AppColors.textSecondary, fontSize: 13)),
+                ),
           ),
           const Divider(color: AppColors.steel, height: 1),
           ListTile(
