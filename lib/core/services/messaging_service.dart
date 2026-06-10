@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -35,6 +37,16 @@ class MessagingService {
   /// the router is available so this service stays UI-agnostic.
   PushTapHandler? _onTap;
 
+  /// Tracks which uid the foreground/token-refresh listeners are currently
+  /// attached for. Stored so account switches deactivate the previous
+  /// subscriptions instead of stacking new ones on top - the leak that
+  /// caused notification taps to navigate the router N times after N
+  /// account switches.
+  StreamSubscription<String>? _tokenRefreshSub;
+  StreamSubscription<RemoteMessage>? _foregroundSub;
+  StreamSubscription<RemoteMessage>? _openedSub;
+  bool _coldStartHandled = false;
+
   /// Configure the notification-tap handler. Safe to call multiple times —
   /// the most recent handler wins. Called from app.dart once GoRouter is
   /// available so the service stays UI-agnostic.
@@ -43,8 +55,23 @@ class MessagingService {
   }
 
   /// Returns the FCM token if granted, otherwise null.
+  ///
+  /// Idempotent across account switches: cancels any previous
+  /// subscriptions before attaching new ones. Without this, signing
+  /// out and back in (or switching accounts) doubled every FCM
+  /// listener, so a single push tap would call the router N times
+  /// after N sign-in cycles.
   Future<String?> initForUser(String uid) async {
     try {
+      // Cancel any subscriptions from a previous user. Each is
+      // recreated below with the new uid baked into _persistToken.
+      await _tokenRefreshSub?.cancel();
+      await _foregroundSub?.cancel();
+      await _openedSub?.cancel();
+      _tokenRefreshSub = null;
+      _foregroundSub = null;
+      _openedSub = null;
+
       final NotificationSettings settings = await _messaging.requestPermission(
         alert: true,
         badge: true,
@@ -57,17 +84,17 @@ class MessagingService {
       if (token != null) {
         await _persistToken(uid: uid, token: token);
       }
-      _messaging.onTokenRefresh.listen((String t) {
+      _tokenRefreshSub = _messaging.onTokenRefresh.listen((String t) {
         _persistToken(uid: uid, token: t);
       });
-      FirebaseMessaging.onMessage.listen((RemoteMessage msg) {
+      _foregroundSub = FirebaseMessaging.onMessage.listen((RemoteMessage msg) {
         if (kDebugMode) {
           debugPrint('FCM foreground: ${msg.notification?.title}');
         }
       });
 
       // Tap-while-running: app is open in background, user taps notification.
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) {
+      _openedSub = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) {
         if (kDebugMode) {
           debugPrint('FCM tap (running): ${msg.data}');
         }
@@ -76,15 +103,22 @@ class MessagingService {
 
       // Cold-start: app was killed, user tapped notification to launch it.
       // getInitialMessage() resolves once; null if app was started normally.
-      final RemoteMessage? initial = await _messaging.getInitialMessage();
-      if (initial != null) {
-        if (kDebugMode) {
-          debugPrint('FCM tap (cold start): ${initial.data}');
+      // Only handle it the first time initForUser runs - if the user signs
+      // out and back in, the cold-start message is still the original one
+      // and re-firing the tap handler would navigate them somewhere
+      // unexpected mid-session.
+      if (!_coldStartHandled) {
+        _coldStartHandled = true;
+        final RemoteMessage? initial = await _messaging.getInitialMessage();
+        if (initial != null) {
+          if (kDebugMode) {
+            debugPrint('FCM tap (cold start): ${initial.data}');
+          }
+          // Defer slightly so the router/Navigator is mounted before we navigate.
+          Future<void>.delayed(const Duration(milliseconds: 400)).then((_) {
+            _onTap?.call(initial);
+          });
         }
-        // Defer slightly so the router/Navigator is mounted before we navigate.
-        Future<void>.delayed(const Duration(milliseconds: 400)).then((_) {
-          _onTap?.call(initial);
-        });
       }
 
       return token;
