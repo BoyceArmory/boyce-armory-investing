@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -88,11 +91,25 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         ref.invalidate(notificationHistoryProvider),
                   ),
                   data: (items) {
+                    // The "chat" chip groups every chat-style push regardless
+                    // of which legacy channel name the backend stamped on
+                    // it. Without this, a user who tapped Chat would only
+                    // see pushes stamped with the literal "chat" channel
+                    // and would miss everything sent under "admin_chat"
+                    // (modern broadcasts + @mentions) or the original
+                    // "adminBuys" name.
+                    bool matchesFilter(Map<String, dynamic> m) {
+                      final c = (m['channel'] ?? '').toString();
+                      if (_filter == 'chat') {
+                        return c == 'chat' ||
+                            c == 'admin_chat' ||
+                            c == 'adminBuys';
+                      }
+                      return c == _filter;
+                    }
                     final filtered = _filter == 'all'
                         ? items
-                        : items
-                            .where((m) => (m['channel'] ?? '') == _filter)
-                            .toList(growable: false);
+                        : items.where(matchesFilter).toList(growable: false);
                     if (filtered.isEmpty) {
                       final isFiltered = _filter != 'all';
                       return ListView(
@@ -119,6 +136,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                           const SizedBox(height: 8),
                       itemBuilder: (_, i) => _NotificationRow(
                         item: PushHistoryItem.fromMap(filtered[i]),
+                        raw: filtered[i],
                       ),
                     );
                   },
@@ -133,12 +151,16 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
   /// Tally pushes per-channel so the chip header can show a count badge
   /// (e.g. "Hot · 7"). Pure client-side from the already-fetched list.
+  /// Legacy chat channel names ("admin_chat", "adminBuys") are rolled
+  /// into the single "chat" bucket so the user sees one accurate count
+  /// instead of pushes scattered across three different chip groups.
   Map<String, int> _countByChannel(List<Map<String, dynamic>> items) {
     final out = <String, int>{'all': items.length};
     for (final m in items) {
-      final c = (m['channel'] ?? '').toString();
-      if (c.isEmpty) continue;
-      out[c] = (out[c] ?? 0) + 1;
+      final raw = (m['channel'] ?? '').toString();
+      if (raw.isEmpty) continue;
+      final bucket = (raw == 'admin_chat' || raw == 'adminBuys') ? 'chat' : raw;
+      out[bucket] = (out[bucket] ?? 0) + 1;
     }
     return out;
   }
@@ -287,7 +309,11 @@ class PushHistoryItem {
 }
 
 class _NotificationRow extends StatelessWidget {
-  const _NotificationRow({required this.item});
+  const _NotificationRow({required this.item, required this.raw});
+  // Original payload from the API. We keep it on hand so the drilldown
+  // sheet can dump every field (kind, source, data payload, etc.) — the
+  // typed PushHistoryItem only surfaces the small subset the row UI needs.
+  final Map<String, dynamic> raw;
   final PushHistoryItem item;
 
   Color get _channelTone {
@@ -296,9 +322,17 @@ class _NotificationRow extends StatelessWidget {
         return AppColors.bearish;
       case 'scanner':
         return AppColors.gold;
+      // Legacy "chat" plus the modern "admin_chat" channel name (used
+      // by ADMIN BUYS broadcasts, @everyone, and @user mentions). Both
+      // should colour the same so users don't see two different chat
+      // pills in their notification history.
       case 'chat':
+      case 'admin_chat':
+      case 'adminBuys':
         return AppColors.info;
       case 'recap':
+        return AppColors.bullish;
+      case 'premarket':
         return AppColors.bullish;
       case 'announcement':
         return AppColors.warning;
@@ -313,6 +347,19 @@ class _NotificationRow extends StatelessWidget {
     context.go(dl);
   }
 
+  void _openDetailSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.obsidian,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (BuildContext c) =>
+          _NotificationDetailSheet(item: item, raw: raw),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tone = _channelTone;
@@ -323,7 +370,11 @@ class _NotificationRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: hasLink ? () => _open(context) : null,
+        // Tap = deep link to the source (existing behaviour). Long-press
+        // opens a drilldown sheet with the full payload so users can see
+        // every field the backend stamped on this push.
+        onLongPress: () => _openDetailSheet(context),
+        onTap: hasLink ? () => _open(context) : () => _openDetailSheet(context),
         child: Ink(
           decoration: BoxDecoration(
             color: AppColors.graphite,
@@ -430,6 +481,192 @@ final FutureProvider<List<Map<String, dynamic>>> notificationHistoryProvider =
   final AdminRepository repo = ref.watch(adminRepositoryProvider);
   return repo.fetchMyNotificationHistory();
 });
+
+/// Drilldown sheet for a notification row. Dumps every field the backend
+/// stamped (channel, kind, source, deepLink, sentAt, data payload) so
+/// the user can confirm exactly what arrived + paste it into a bug
+/// report if it looks wrong. Same shell pattern as the admin error
+/// drilldown so the UX rhymes.
+class _NotificationDetailSheet extends StatelessWidget {
+  const _NotificationDetailSheet({required this.item, required this.raw});
+  final PushHistoryItem item;
+  final Map<String, dynamic> raw;
+
+  String _label(String k) {
+    switch (k) {
+      case 'title':
+        return 'Title';
+      case 'body':
+        return 'Body';
+      case 'channel':
+        return 'Channel';
+      case 'source':
+        return 'Source';
+      case 'kind':
+        return 'Kind';
+      case 'deepLink':
+        return 'Deep link';
+      case 'sentAt':
+        return 'Sent at';
+      case 'data':
+        return 'Data payload';
+      case 'imageUrl':
+        return 'Image URL';
+      case 'symbol':
+        return 'Symbol';
+      case 'mode':
+        return 'Mode';
+      case 'grade':
+        return 'Grade';
+      case 'recipientCount':
+        return 'Recipients';
+      default:
+        return k;
+    }
+  }
+
+  String _format(dynamic v) {
+    if (v == null) return '—';
+    if (v is num) return v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
+    if (v is Map || v is List) {
+      return const JsonEncoder.withIndent('  ').convert(v);
+    }
+    return v.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final keys = raw.keys.toList()..sort();
+    return DraggableScrollableSheet(
+      initialChildSize: 0.78,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (BuildContext c, ScrollController controller) {
+        return ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.textTertiary.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text(
+              item.title.isEmpty ? '(no title)' : item.title,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
+              ),
+            ),
+            if (item.body.isNotEmpty) ...<Widget>[
+              const SizedBox(height: 6),
+              Text(
+                item.body,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+            ],
+            const SizedBox(height: 18),
+            const Text(
+              'FULL PAYLOAD',
+              style: TextStyle(
+                color: AppColors.gold,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.graphite,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.steel),
+              ),
+              child: Column(
+                children: <Widget>[
+                  for (int i = 0; i < keys.length; i++) ...<Widget>[
+                    if (i > 0)
+                      const Divider(color: AppColors.steel, height: 1),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          SizedBox(
+                            width: 110,
+                            child: Text(
+                              _label(keys[i]),
+                              style: const TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _format(raw[keys[i]]),
+                              textAlign: TextAlign.right,
+                              maxLines: 8,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: true,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(
+                    text: const JsonEncoder.withIndent('  ').convert(raw),
+                  ));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Raw JSON copied')),
+                  );
+                },
+                icon: const Icon(Icons.copy, size: 14, color: AppColors.gold),
+                label: const Text(
+                  'Copy raw JSON',
+                  style: TextStyle(
+                    color: AppColors.gold,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
 
 String _agoShort(DateTime t) {
   final d = DateTime.now().difference(t);

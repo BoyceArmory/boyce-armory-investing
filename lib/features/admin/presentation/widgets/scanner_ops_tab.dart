@@ -147,7 +147,7 @@ class _ScannerOpsTabState extends ConsumerState<ScannerOpsTab> {
                         Switch(
                           value: _force,
                           onChanged: (v) => setState(() => _force = v),
-                          activeColor: AppColors.gold,
+                          activeThumbColor: AppColors.gold,
                         ),
                         const Text('force',
                             style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
@@ -305,7 +305,7 @@ class _KillSwitchRow extends StatelessWidget {
         ),
         Switch(
           value: value,
-          activeColor: AppColors.gold,
+          activeThumbColor: AppColors.gold,
           onChanged: (v) => onChanged(v),
         ),
         TextButton(

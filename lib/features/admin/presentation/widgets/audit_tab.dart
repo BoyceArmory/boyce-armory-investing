@@ -200,11 +200,11 @@ class _FilterBar extends StatelessWidget {
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: AppColors.steel),
+                borderSide: const BorderSide(color: AppColors.steel),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: AppColors.steel),
+                borderSide: const BorderSide(color: AppColors.steel),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -445,7 +447,25 @@ class _Row extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Container(
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => showModalBottomSheet<void>(
+            context: context,
+            backgroundColor: AppColors.obsidian,
+            isScrollControlled: true,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            builder: (BuildContext c) => _DetectorDetailSheet(
+              spec: spec,
+              disabled: disabled,
+              stats: stats,
+            ),
+          ),
+          child: Container(
         padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
         decoration: BoxDecoration(
           color: AppColors.graphite,
@@ -497,12 +517,293 @@ class _Row extends StatelessWidget {
               Switch(
                 value: !disabled,
                 onChanged: onChanged,
-                activeColor: AppColors.gold,
+                activeThumbColor: AppColors.gold,
                 inactiveThumbColor: AppColors.bearish,
               ),
           ],
         ),
       ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Drilldown for a single detector. Pulls the existing backtest stats
+/// already loaded by the parent tab (so no extra round-trip) and shows
+/// the full status: enabled/disabled, expectancy, total trades, win rate
+/// if available, plus a verdict block that mirrors the language used on
+/// the backtest sheet. Same fixed-label / expanded-value table for the
+/// raw fields. Includes a Copy raw JSON action.
+class _DetectorDetailSheet extends StatelessWidget {
+  const _DetectorDetailSheet({
+    required this.spec,
+    required this.disabled,
+    required this.stats,
+  });
+  final _DetSpec spec;
+  final bool disabled;
+  final Map<String, dynamic>? stats;
+
+  String _label(String k) {
+    switch (k) {
+      case 'totalTrades':
+        return 'Total trades';
+      case 'wins':
+        return 'Wins';
+      case 'losses':
+        return 'Losses';
+      case 'winRate':
+        return 'Win rate (%)';
+      case 'expectancyPct':
+        return 'Expectancy (%)';
+      case 'avgRMultiple':
+        return 'Avg R-multiple';
+      case 'avgHoldHours':
+        return 'Avg hold (hours)';
+      case 'bestR':
+        return 'Best R-multiple';
+      case 'worstR':
+        return 'Worst R-multiple';
+      case 'lastUpdated':
+        return 'Last updated';
+      case 'cooldownUntil':
+        return 'Cooldown until';
+      case 'demotedAt':
+        return 'Demoted at';
+      case 'mode':
+        return 'Mode';
+      case 'kind':
+        return 'Detector kind';
+      default:
+        return k;
+    }
+  }
+
+  String _format(dynamic v) {
+    if (v == null) return '—';
+    if (v is num) return v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
+    return v.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final expectancy = (stats?['expectancyPct'] as num?)?.toDouble();
+    final n = (stats?['totalTrades'] as num?)?.toInt() ?? 0;
+    Color verdict;
+    String verdictLabel;
+    String verdictBody;
+    if (disabled) {
+      verdict = AppColors.bearish;
+      verdictLabel = 'DISABLED';
+      verdictBody =
+          'This detector is currently in the kill list — it will not fire alerts. Flip the switch on the parent row to re-enable.';
+    } else if (n < 30) {
+      verdict = AppColors.textTertiary;
+      verdictLabel = 'NEEDS MORE DATA';
+      verdictBody = n > 0
+          ? 'Only $n trades. Treat results as noise until n >= 30.'
+          : 'No backtest data yet — detector has not fired (or fired without close data) in the lookback window.';
+    } else if (expectancy != null && expectancy >= 0.15) {
+      verdict = AppColors.bullish;
+      verdictLabel = 'EDGE CONFIRMED';
+      verdictBody =
+          'Expectancy ${expectancy.toStringAsFixed(2)}% over $n trades. Keep this detector active.';
+    } else if (expectancy != null && expectancy >= 0) {
+      verdict = AppColors.gold;
+      verdictLabel = 'MARGINAL';
+      verdictBody =
+          'Expectancy ${expectancy.toStringAsFixed(2)}% — positive but thin. Watch for drift.';
+    } else if (expectancy != null) {
+      verdict = AppColors.bearish;
+      verdictLabel = 'BLEEDING';
+      verdictBody =
+          'Expectancy ${expectancy.toStringAsFixed(2)}% over $n trades. Consider disabling.';
+    } else {
+      verdict = AppColors.textTertiary;
+      verdictLabel = 'NO DATA';
+      verdictBody = 'No backtest stats attached to this detector yet.';
+    }
+    final raw = <String, dynamic>{
+      'mode': spec.mode,
+      'kind': spec.kind,
+      if (stats != null) ...stats!,
+    };
+    final keys = raw.keys.where((k) => k != 'mode' && k != 'kind').toList()
+      ..sort();
+    return DraggableScrollableSheet(
+      initialChildSize: 0.78,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (BuildContext c, ScrollController controller) {
+        return ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.textTertiary.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              children: <Widget>[
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.gold),
+                  ),
+                  child: Text(
+                    spec.mode.toUpperCase(),
+                    style: const TextStyle(
+                      color: AppColors.gold,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    spec.kind.replaceAll('_', ' '),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: verdict.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: verdict.withValues(alpha: 0.6)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    verdictLabel,
+                    style: TextStyle(
+                      color: verdict,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    verdictBody,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'FULL REPORT',
+              style: TextStyle(
+                color: AppColors.gold,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.graphite,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.steel),
+              ),
+              child: Column(
+                children: <Widget>[
+                  for (int i = 0; i < keys.length; i++) ...<Widget>[
+                    if (i > 0)
+                      const Divider(color: AppColors.steel, height: 1),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          SizedBox(
+                            width: 130,
+                            child: Text(
+                              _label(keys[i]),
+                              style: const TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _format(raw[keys[i]]),
+                              textAlign: TextAlign.right,
+                              maxLines: 6,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: true,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(
+                    text: const JsonEncoder.withIndent('  ').convert(raw),
+                  ));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Raw JSON copied')),
+                  );
+                },
+                icon: const Icon(Icons.copy, size: 14, color: AppColors.gold),
+                label: const Text(
+                  'Copy raw JSON',
+                  style: TextStyle(
+                    color: AppColors.gold,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

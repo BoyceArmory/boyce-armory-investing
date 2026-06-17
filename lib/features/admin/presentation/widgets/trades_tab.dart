@@ -131,6 +131,16 @@ class _ActiveTradesSectionState extends ConsumerState<_ActiveTradesSection> {
               final t = list[i];
               final id = (t['id'] ?? '').toString();
               return _TradeRow(
+                onTap: () => showModalBottomSheet<void>(
+                  context: context,
+                  backgroundColor: AppColors.obsidian,
+                  isScrollControlled: true,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(22)),
+                  ),
+                  builder: (BuildContext c) => _ClosedTradeSheet(trade: t),
+                ),
                 title: '${t['symbol']} · ${t['direction']}',
                 subtitle:
                     'entry ${t['entry']}${t['target'] != null ? " → ${t['target']}" : ""}${t['stop'] != null ? " · stop ${t['stop']}" : ""}',
@@ -288,6 +298,17 @@ class _ClosedTradesSectionState
                   ? AppColors.bullish
                   : (result == 'loss' ? AppColors.bearish : AppColors.textSecondary);
               return _TradeRow(
+                onTap: () => showModalBottomSheet<void>(
+                  context: context,
+                  backgroundColor: AppColors.obsidian,
+                  isScrollControlled: true,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(22)),
+                  ),
+                  builder: (BuildContext c) =>
+                      _ClosedTradeSheet(trade: t),
+                ),
                 title: '${t['symbol']} · ${t['direction']}',
                 subtitle:
                     'entry ${t['entry']} → exit ${t['exit']}${pnlPct != null ? "  (${pnlPct.toStringAsFixed(2)}%)" : ""}',
@@ -325,13 +346,25 @@ class _ClosedTradesSectionState
 }
 
 class _TradeRow extends StatelessWidget {
-  const _TradeRow({required this.title, required this.subtitle, required this.tail});
+  const _TradeRow({
+    required this.title,
+    required this.subtitle,
+    required this.tail,
+    this.onTap,
+  });
   final String title;
   final String subtitle;
   final Widget tail;
+  final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
       decoration: BoxDecoration(
         color: AppColors.graphite,
         border: Border.all(color: AppColors.steel),
@@ -357,8 +390,311 @@ class _TradeRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           tail,
+          if (onTap != null) ...const <Widget>[
+            SizedBox(width: 4),
+            Icon(Icons.chevron_right,
+                color: AppColors.textTertiary, size: 18),
+          ],
         ],
       ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom-sheet drilldown for a closed trade. Shows the full lifecycle —
+/// entry/exit, P&L %, P&L $, R-multiple, regime + session + scoreAtFire
+/// (the learning-loop signals), sizing snapshot, suggested contract,
+/// and the full timestamps. Same pattern as the backtest + learning
+/// drilldowns: fixed-label table on the left, ellipsizing value column
+/// on the right, raw-JSON copy at the bottom. Verdict block at the top
+/// summarises the trade as WIN / LOSS / BREAKEVEN with one-line context.
+class _ClosedTradeSheet extends StatelessWidget {
+  const _ClosedTradeSheet({required this.trade});
+  final Map<String, dynamic> trade;
+
+  String _label(String k) {
+    switch (k) {
+      case 'symbol':
+        return 'Symbol';
+      case 'direction':
+        return 'Direction';
+      case 'mode':
+        return 'Mode';
+      case 'kind':
+        return 'Detector kind';
+      case 'entry':
+        return 'Entry';
+      case 'exit':
+        return 'Exit';
+      case 'target':
+        return 'Target';
+      case 'stop':
+        return 'Stop';
+      case 'pnlPct':
+        return 'P&L (%)';
+      case 'pnlAbs':
+        return 'P&L (\$)';
+      case 'rMultiple':
+        return 'R-multiple';
+      case 'result':
+        return 'Result';
+      case 'regime':
+        return 'Regime at entry';
+      case 'session':
+        return 'Session';
+      case 'scoreAtFire':
+        return 'Score at fire';
+      case 'grade':
+        return 'Grade';
+      case 'sizing':
+        return 'Sizing snapshot';
+      case 'suggestedContract':
+        return 'Suggested contract';
+      case 'openedAt':
+        return 'Opened at';
+      case 'closedAt':
+        return 'Closed at';
+      case 'durationHours':
+        return 'Duration (hours)';
+      case 'isShadow':
+        return 'Shadow trade?';
+      case 'tookByUid':
+        return 'Taken by (uid)';
+      case 'notes':
+        return 'Notes';
+      default:
+        return k;
+    }
+  }
+
+  String _format(dynamic v) {
+    if (v == null) return '—';
+    if (v is num) return v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
+    return v.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final result = (trade['result'] ?? '').toString().toLowerCase();
+    final pnlPct = (trade['pnlPct'] as num?)?.toDouble();
+    final pnlAbs = (trade['pnlAbs'] as num?)?.toDouble();
+    final rMult = (trade['rMultiple'] as num?)?.toDouble();
+    final symbol = (trade['symbol'] ?? '').toString();
+    final direction = (trade['direction'] ?? '').toString();
+
+    // An open position has no result + no closedAt. We surface it as
+    // OPEN with the planned target/stop instead of pretending the trade
+    // resolved at breakeven. Detection is "trade is still active" =
+    // no result + no closedAt timestamp.
+    final isOpen = (trade['closedAt'] == null) &&
+        (result.isEmpty || result == 'open' || result == 'active');
+
+    Color verdict;
+    String verdictLabel;
+    String verdictBody;
+    if (isOpen) {
+      verdict = AppColors.gold;
+      verdictLabel = 'OPEN';
+      final target = trade['target']?.toString();
+      final stop = trade['stop']?.toString();
+      verdictBody =
+          'Position is still open. Plan: target ${target ?? "—"}, stop ${stop ?? "—"}.';
+    } else if (result == 'win') {
+      verdict = AppColors.bullish;
+      verdictLabel = 'WIN';
+      verdictBody = pnlPct != null
+          ? '+${pnlPct.toStringAsFixed(2)}% · ${rMult != null ? "${rMult >= 0 ? "+" : ""}${rMult.toStringAsFixed(2)}R" : "R-multiple n/a"}'
+          : 'Closed positive.';
+    } else if (result == 'loss') {
+      verdict = AppColors.bearish;
+      verdictLabel = 'LOSS';
+      verdictBody = pnlPct != null
+          ? '${pnlPct.toStringAsFixed(2)}% · ${rMult != null ? "${rMult.toStringAsFixed(2)}R" : "R-multiple n/a"}'
+          : 'Closed negative.';
+    } else {
+      verdict = AppColors.gold;
+      verdictLabel = 'BREAKEVEN';
+      verdictBody = 'Closed flat — neither stop nor target struck cleanly.';
+    }
+
+    // mode + result get rendered in the verdict pill; keep the rest in
+    // alpha order in the table so admins can scan predictably.
+    final keys = trade.keys
+        .where((k) => k != 'symbol' && k != 'direction' && k != 'result')
+        .toList()
+      ..sort();
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.78,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (BuildContext c, ScrollController controller) {
+        return ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.textTertiary.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              children: <Widget>[
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: verdict.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: verdict),
+                  ),
+                  child: Text(
+                    verdictLabel,
+                    style: TextStyle(
+                      color: verdict,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '$symbol · $direction',
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                    ),
+                  ),
+                ),
+                if (pnlAbs != null)
+                  Text(
+                    '${pnlAbs >= 0 ? "+" : ""}\$${pnlAbs.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: verdict,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: verdict.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: verdict.withValues(alpha: 0.55)),
+              ),
+              child: Text(
+                verdictBody,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  height: 1.45,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'FULL REPORT',
+              style: TextStyle(
+                color: AppColors.gold,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.graphite,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.steel),
+              ),
+              child: Column(
+                children: <Widget>[
+                  for (int i = 0; i < keys.length; i++) ...<Widget>[
+                    if (i > 0)
+                      const Divider(color: AppColors.steel, height: 1),
+                    Padding(
+                      padding:
+                          const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          SizedBox(
+                            width: 140,
+                            child: Text(
+                              _label(keys[i]),
+                              style: const TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _format(trade[keys[i]]),
+                              textAlign: TextAlign.right,
+                              maxLines: 6,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: true,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(
+                    text:
+                        const JsonEncoder.withIndent('  ').convert(trade),
+                  ));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Raw JSON copied')),
+                  );
+                },
+                icon: const Icon(Icons.copy, size: 14, color: AppColors.gold),
+                label: const Text(
+                  'Copy raw JSON',
+                  style: TextStyle(
+                    color: AppColors.gold,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

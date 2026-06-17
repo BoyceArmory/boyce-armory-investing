@@ -13,18 +13,35 @@ const List<LearnSection> learnSections = <LearnSection>[
     lessons: <LearnLesson>[
       LearnLesson(
         id: 'how-to-read-alerts',
-        title: 'How to Read a Boyce Armory Alert',
+        title: 'How to Read a Boyce Armory Trade Card',
         summary:
-            'Every alert has the same anatomy. Once you know the parts, the system feels obvious.',
+            'Every part of the card has a job. This lesson walks the entire card top to bottom so nothing on it is mystery.',
         featured: true,
         imageAssetPath: AssetPaths.learnHowToReadAlerts,
-        imageTitle: 'Alert anatomy',
+        imageTitle: 'Trade card anatomy',
         bullets: <String>[
-          'Ticker, direction, and grade tell you what kind of trade it is.',
-          'Entry / target / stop define the plan in advance.',
-          'The setup type tells you why we think this works.',
-          'The score reflects confidence - the higher, the cleaner.',
+          'TOP-RIGHT eyebrow: HOT TRADE means the team or scanner promoted this; ADMIN PICK pill = hand-picked by us, no pill = scanner-detected.',
+          'MODE PILL (DAY / SWING / LEAPS): the timeframe the setup is built for. Mismatch your timeframe and the trade plan stops working.',
+          'GRADE BADGE (A+ / A / B+ / B): conviction tier. A+ requires 95+ score AND 4-of-6 conviction lanes to fire; A is 88+; B is 78+. Below B doesn\'t alert.',
+          'SCORE (0–100): raw quality measure. Two A-grade alerts at score 88 vs 92 are meaningfully different — higher = cleaner setup, less is being forgiven by the grader.',
+          'CONFIDENCE: a derived 0–100 that blends grade + setup edge from backtest. It\'s the single number you check if you only check one number.',
+          'ENTRY / TARGET / STOP: the plan in advance. Entry is where to take the trade, target is the first take-profit, stop is where the thesis is broken. If price hits stop, the alert was wrong.',
+          'R-MULTIPLE (+X.XR): reward divided by risk. +2.0R means the target pays you twice what the stop costs you. Below +1.5R is usually skippable.',
+          'CURRENT PRICE / VOLUME / DAY %: live snapshot at the time the card was published. If current price has already passed the target by the time you see the card, it\'s late.',
+          'WHY THIS STOCK: a one-paragraph narrative explaining the setup in plain English — what the catalyst is, what makes this ticker stand out today.',
+          'WHY THIS FIRED: the trigger snapshot — RSI, MACD, MTF (multi-timeframe alignment), VWAP, EMA stack. These are the technical signals the scanner saw before firing.',
+          'HOW THIS SETUP WORKS: educational copy for the detector kind. Same setup type will always show the same copy here — it\'s the playbook.',
+          'PLAN ROW: a clean three-cell strip showing Entry / Target / Stop side by side. The visual you trade from.',
+          'SUGGESTED CONTRACT: when the contract suggester picks one, you see strike / expiration / CALL or PUT / mid price / greeks. Use this as a starting point, not a mandate.',
+          'POSITION SIZING CHIP: shows recommended contracts + total cost + % risk based on your Settings (account size + max risk %). Tap to edit.',
+          'OPTIONS WARNINGS: IV crush warnings before earnings, deep-ITM warnings, wide-spread warnings. If a warning fires, the contract is sub-optimal.',
+          'ACTION BAR: Took / Watching / Pass buttons. These feed the learning loop — your real engagement makes the scanner smarter over time.',
+          'WATCHLIST STAR: tap to add the ticker to your watchlist. Filter Hot Trades to your watchlist with the chip below the mode tabs.',
+          'CHART BUTTON: opens the in-app candle chart for the ticker with entry / target / stop overlay lines pre-drawn.',
+          'FOOTER (timestamp, win-rate chip, MTF tag): timestamp tells you how old the alert is; the win-rate chip shows backtest edge for THIS detector; MTF tag confirms the higher timeframe agrees.',
         ],
+        body:
+            'A trade card is dense by design — everything we know about a setup is on one screen so you never have to dig. Here is the order I read every card in:\n\n1) Eyebrow first. HOT TRADE or scanner card? Is the ADMIN PICK pill visible? That tells me whether this came from the team\'s hand or from the algorithm.\n\n2) Mode + Grade. DAY / SWING / LEAPS sets my mental timeframe. A+ vs B is the conviction floor — I size A+ bigger than B unless something on the chart shouts otherwise.\n\n3) The plan row. Entry → Target → Stop. If those three numbers don\'t make sense relative to each other, I skip. Usually I want +1.5R minimum.\n\n4) Why this stock. The narrative tells me the WHY. If the catalyst is earnings tomorrow, I\'m extra careful about IV crush. If it\'s a sector rotation play, I check the sector heatmap on home.\n\n5) Why this fired. The trigger snapshot is the WHAT — what the scanner actually saw. Multi-timeframe confirmation (MTF tag in the footer) is the most underrated chip on the card.\n\n6) Contract + sizing. If a suggested contract is shown, I confirm strike and expiration match my timeframe. The sizing chip tells me qty + cost. If that says "Sizing N/A" my risk budget can\'t afford even one — I either skip or open Settings and bump my account size.\n\n7) Warnings. IV crush warning before earnings? Wide spread? I treat warnings as serious — they\'re the difference between a clean play and a regret.\n\n8) Action. Took / Watching / Pass. Every tap feeds the learning loop, so it\'s worth being honest. If I pass, I tap Pass. The scanner learns from your real engagement.\n\nTwo last tips. First, the FOOTER win-rate chip is THE single best lens for "is this detector working lately?" — it\'s backtest edge, not vibes. Second, the score number matters more than people think. An A+ at 95 and an A+ at 99 are NOT the same trade. Train your eye on it.',
       ),
       LearnLesson(
         id: 'how-markets-work',
@@ -175,6 +192,34 @@ const List<LearnSection> learnSections = <LearnSection>[
         ],
         body:
             'A LEAP on NVDA at 0.70 delta with 1 year to expiration is essentially a leveraged long-term position with built-in downside cap (you only lose what you paid). Pros use them to play multi-month themes - AI, energy transition, biotech breakthroughs. The Boyce Armory LEAP scanner runs once a day after close and only fires on the highest-conviction setups.',
+      ),
+      LearnLesson(
+        id: 'iv-rank-vs-percentile',
+        title: 'IV Rank vs IV Percentile',
+        summary:
+            'Both measure how expensive options are today vs the last year. They tell you different things.',
+        bullets: <String>[
+          'IV Rank: where today\'s IV sits between the 52-week low and high. Pure scale.',
+          'IV Percentile: what % of days in the last year had a LOWER IV. Distribution-aware.',
+          'A stock that spiked once and is otherwise calm: high IV rank, but moderate percentile.',
+          'For ENTERING long premium, prefer LOW values on either. For SHORT premium (spreads, condors), prefer HIGH values.',
+        ],
+        body:
+            'Imagine SPY had an IV of 10 most of the year and one panic week at 40. Today\'s IV is 25. IV Rank says 50 (you\'re in the middle of the range), but IV Percentile says 95 (you\'re higher than 95% of days). Percentile is usually the better read because outliers don\'t fool it. The Boyce Armory IV-rank card on home reports both — when they disagree wildly, the stock has had a recent vol shock and the rank number is misleading.',
+      ),
+      LearnLesson(
+        id: 'gamma-exposure',
+        title: 'Gamma and Dealer Positioning',
+        summary:
+            'Options dealers hedge — and that hedging creates predictable price-action behavior at certain levels.',
+        bullets: <String>[
+          'Dealers sell calls/puts to retail and hedge by buying/selling the underlying.',
+          'When dealers are short gamma (typical near OPEX): they buy as price rises, sell as it falls → moves get amplified.',
+          'When dealers are long gamma: they sell into strength, buy weakness → moves get dampened.',
+          'Knowing which side dealers sit on tells you whether a breakout will rip or chop.',
+        ],
+        body:
+            'You don\'t need to compute gamma exposure yourself — sites like SpotGamma + the chain analytics panel on every scanner card give you the numbers. What you DO need to know: same setup chart, same RSI, same MACD will play very differently in a short-gamma vs long-gamma regime. Tuesdays/Wednesdays right before monthly OPEX are usually dampened (long gamma); the Friday after is usually choppy as positioning resets. Read the chain analytics panel before you size in.',
       ),
     ],
   ),
@@ -481,6 +526,47 @@ const List<LearnSection> learnSections = <LearnSection>[
           'Cut the losing setups, double the winners.',
         ],
       ),
+      LearnLesson(
+        id: 'scaling-out',
+        title: 'Scaling Out: Locking in Profits',
+        summary:
+            'Selling part of a position at the first target turns a "right but greedy" trade into a guaranteed win.',
+        bullets: <String>[
+          'Sell 33-50% at the first target (T1 = 1R). This pays for the risk on the rest.',
+          'After scaling, move your stop to break-even. The remainder is now a free trade.',
+          'Take another 25-33% at T2 (2R). Let the final piece run on a trailing stop.',
+          'Best trades come from the runners — but only if you protect the core first.',
+        ],
+        body:
+            'The hardest skill in trading isn\'t getting in. It\'s getting out. Every trader has stories of options that went +200%, then expired worthless. The fix isn\'t a smarter exit signal — it\'s a mechanical scale-out rule baked in BEFORE you enter. Decide: how many contracts come off at T1, T2, T3? Write it on the alert card. Follow the script. The R-multiple shown on every Boyce Armory alert defines what 1R looks like for that specific trade, which is the trigger for your first partial exit.',
+      ),
+      LearnLesson(
+        id: 'three-trade-plans',
+        title: 'The Three Trade Plans',
+        summary:
+            'Every trade is one of three things. Knowing which one keeps you from blending strategies that shouldn\'t mix.',
+        bullets: <String>[
+          'CATALYST: a known event (earnings, FOMC, product launch) drives the move. Time-bounded.',
+          'CONTINUATION: price is already trending and the setup says it will keep going. Stop is at the structure that defined the trend.',
+          'MEAN REVERSION: price has overextended and is snapping back. Targets are at the moving average; stops are at the recent extreme.',
+        ],
+        body:
+            'Most account-blow-up stories are someone trading a continuation playbook (chase strength, ride the breakout) on a mean-reversion setup (overextended into resistance), or vice versa. Boyce Armory alerts are tagged by setup kind — the "kind" field on the trade card (breakout, pullback, reversal, etc.) maps to one of these three plans. Match the plan to the setup BEFORE entry and you skip 80% of the mistakes new options traders make.',
+      ),
+      LearnLesson(
+        id: 'tilt',
+        title: 'Tilt: Recognizing the Death Spiral',
+        summary:
+            'Tilt is the moment emotion takes the controls. Recognize it in five seconds or you\'ll lose more than a single bad trade.',
+        bullets: <String>[
+          'Symptom 1: you take the next setup before reviewing the loss you just took.',
+          'Symptom 2: position size creeps up to "make back" what you lost.',
+          'Symptom 3: you start trading setups not in your playbook.',
+          'Symptom 4: you\'re refreshing the chart every 30 seconds.',
+        ],
+        body:
+            'Tilt isn\'t a character flaw. It\'s a neurological response to loss aversion and it happens to every trader, every level. The pros have a hard rule: after two consecutive losses OR a single loss bigger than 1.5R, you\'re done for the day. No exceptions. The single most expensive trade in your life will be the third revenge trade after two losses. Walk away — the market is open again tomorrow. The Boyce Armory shadow stats don\'t care if you trade today or not.',
+      ),
     ],
   ),
   LearnSection(
@@ -591,6 +677,42 @@ const List<LearnSection> learnSections = <LearnSection>[
         ],
         body:
             'Power hour is where the day s thesis gets confirmed or rejected. If SPY is up 1% all day and starts giving it back at 3:00, that tells you something about tomorrow. The scanner does not fire new day-trade alerts in power hour intentionally - this is when you should be managing trades, not opening new ones unless they are exceptional.',
+      ),
+      LearnLesson(
+        id: 'using-snooze',
+        title: 'Snooze: Silence Everything for a Window',
+        summary:
+            'One tap to mute every push when you need focus — without rewriting all your prefs.',
+        bullets: <String>[
+          'Settings → Notifications → Snooze card has three chips: 1 hour, 8 hours, Until 8am.',
+          'Tap a chip and EVERY push (scanner, hot, chat broadcasts, @mentions, premarket, recap, announcements) is suppressed until the timer expires.',
+          'Snooze beats quiet-hours bypass. Even "truly emergent" admin pushes wait until snooze expires.',
+          'When snooze is active, a gold strip appears on Home (and on Hot Trades and Scanner) showing "Notifications snoozed until 14:30 · 1h 12m left".',
+          'Tap the strip from anywhere to jump back to Settings and extend or cancel.',
+          'Cancel mid-window: open Settings → tap Cancel in the snooze card. Pushes resume immediately on the next fan-out.',
+          'Snooze auto-clears when the timer hits zero — no manual cleanup needed.',
+          'Your individual channel toggles, advanced filters, quiet hours, and per-room chat mutes are NOT touched. When snooze expires, your prefs are exactly how you left them.',
+        ],
+        body:
+            'Snooze is the right tool when you need silence for a defined window — a meeting, a workout, deep focus on one trade. The mistake people make is to toggle every channel off individually, then forget which ones were on when they come back.\n\nSnooze keeps your prefs intact. You set a timer; everything goes quiet; the timer expires; pushes resume exactly as configured. There is no "undo my snooze and figure out what I had before" problem.\n\nThe gold indicator on Home is intentional. The cost of a missed quiet-hours window is at most one missed alert; the cost of forgetting you snoozed for 8 hours and then wondering why the app feels broken is much higher. Tap the indicator to extend (chips stay live while snoozed) or to cancel.\n\nA note on overlapping windows. If you have quiet hours 22:00-06:00 AND you snooze for 8 hours starting at 14:00, the snooze wins until 22:00 — at which point quiet hours take over. Pushes resume at 06:00. You do not need to do math here; the queue handles overlap and you will never get a push during either window.\n\nFinally, snooze is per-user, not per-device. Snoozing on your phone snoozes your iPad too. The user doc syncs across all your sessions on the next snapshot.',
+      ),
+      LearnLesson(
+        id: 'using-the-chat',
+        title: 'Using the Chat: Mentions, Mute, Search',
+        summary:
+            'Tag people, quiet rooms you do not need right now, and find old posts fast.',
+        bullets: <String>[
+          'Type @ to summon the user picker — pick a name and the message will buzz that person\'s phone.',
+          'Admins can use @everyone to push to the whole roster. Regular users\' @everyone is silently dropped server-side.',
+          'Each room tile on Chat home shows a gold unread count when there are messages newer than the last time you opened it.',
+          'The Chat tab in the bottom nav shows a rollup badge — total unread across every room — so you do not have to open Chat to know something is waiting.',
+          'Tap the bell icon in any room\'s AppBar to mute. Muted rooms still receive messages and still appear in the list — they just stop buzzing your phone and stop firing the badge.',
+          'Tap the magnifier in any room\'s AppBar to filter the last ~100 messages by text or sender. Useful when you remember "X said something about NVDA" but cannot find it.',
+          'On Chat home, when at least one room has unread messages, a gold strip appears with "Mark all read" — clears every badge in one tap.',
+          'Settings → Notifications → "Chat broadcasts + @mentions" is the master kill switch for ALL chat-driven pushes. Mute that and you go silent across every room until you flip it back.',
+        ],
+        body:
+            'Chat is meant to be useful, not noisy. The mute-per-room toggle is the most underrated tool in there — if you are deep in a trade and do not want ADMIN BUYS screenshots buzzing for the next 30 minutes, mute the room. The unread badge still shows, so you can catch up at your pace.\n\n@mentions are the opposite — they explicitly cut through. If someone tags you specifically, you get a push titled "@Sender mentioned you" even if the room itself is busy. Admins can broadcast @everyone, which fires a separate push to every active phone (still subject to each user\'s mute settings).\n\nThe search sheet is room-scoped on purpose. It only filters messages currently streamed into the room — meaning the last ~100 — but those load as soon as you open the room, so search is instant. For older history, scroll the room.\n\nFinally, a note on the badge counts. They are capped at 99 client-side so the chip stays readable. If you see 99+ for a long time, that just means real activity — not a stuck counter. Tap "Mark all read" or open each room to clear.',
       ),
     ],
   ),

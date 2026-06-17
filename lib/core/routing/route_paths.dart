@@ -21,6 +21,9 @@ class RoutePaths {
   static const String premarket = '/premarket';
   /// Settings — notification toggles, disclaimer, about, admin tools.
   static const String settings = '/settings';
+  /// In-app changelog — version history for users discovering features
+  /// they didn't know shipped.
+  static const String changelog = '/changelog';
   /// Market news — full list of headlines moved off the home feed into
   /// its own route to keep the home page lean.
   static const String news = '/news';
@@ -73,6 +76,10 @@ class RoutePaths {
 
   // Admin
   static const String adminDashboard = '/admin';
+  /// Admin notifications inbox — list of every admin_event (new signups,
+  /// support tickets, role/tier changes). Deep-link target for FCM pushes
+  /// fired by the new-account-watcher cron and any future admin events.
+  static const String adminNotifications = '/admin/notifications';
 
   // Support
   static const String supportTicket = '/support/ticket';

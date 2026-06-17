@@ -67,6 +67,7 @@ class CardBackground extends StatelessWidget {
     this.minHeight = 200,
     this.glow = false,
     this.onTap,
+    this.onLongPress,
   });
 
   final Widget child;
@@ -80,6 +81,9 @@ class CardBackground extends StatelessWidget {
 
   final bool glow;
   final VoidCallback? onTap;
+  /// Long-press handler — surfaces a power-user action sheet (share,
+  /// watchlist, copy plan, open chart, etc.). Independent of [onTap].
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -134,13 +138,14 @@ class CardBackground extends StatelessWidget {
       ),
     );
 
-    if (onTap == null) return body;
+    if (onTap == null && onLongPress == null) return body;
     return Material(
       color: Colors.transparent,
       borderRadius: radius,
       child: InkWell(
         borderRadius: radius,
         onTap: onTap,
+        onLongPress: onLongPress,
         splashColor: (accentColor ?? AppColors.gold).withValues(alpha: 0.06),
         highlightColor:
             (accentColor ?? AppColors.gold).withValues(alpha: 0.04),

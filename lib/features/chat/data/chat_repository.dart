@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/services/api_client.dart';
 import 'chat_models.dart';
 
 /// All Firestore + Storage interactions for the chat feature.
@@ -14,15 +16,18 @@ class ChatRepository {
     FirebaseStorage? storage,
     FirebaseAuth? auth,
     ImagePicker? imagePicker,
+    required ApiClient apiClient,
   })  : _db = firestore ?? FirebaseFirestore.instance,
         _storage = storage ?? FirebaseStorage.instance,
         _auth = auth ?? FirebaseAuth.instance,
-        _picker = imagePicker ?? ImagePicker();
+        _picker = imagePicker ?? ImagePicker(),
+        _api = apiClient;
 
   final FirebaseFirestore _db;
   final FirebaseStorage _storage;
   final FirebaseAuth _auth;
   final ImagePicker _picker;
+  final ApiClient _api;
 
   // -------- references --------
 
@@ -56,6 +61,11 @@ class ChatRepository {
     required String senderName,
     required String? profileImageUrl,
     required bool isAdmin,
+    // Mentions resolved client-side from the picker. uids are the
+    // explicit per-user targets; everyone:true triggers an admin-only
+    // @everyone broadcast (server enforces the admin gate).
+    List<String> mentionedUids = const <String>[],
+    bool mentionEveryone = false,
   }) async {
     final User? u = _auth.currentUser;
     if (u == null) throw StateError('Not signed in.');
@@ -76,17 +86,67 @@ class ChatRepository {
       'roomId': roomId,
       'deleted': false,
       'edited': false,
+      'mentionedUids': mentionedUids,
+      'mentionEveryone': mentionEveryone,
       'reactions': <String, dynamic>{},
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
     await _bumpRoom(roomId: roomId, roomTitle: roomTitle, lastMessage: body);
+
+    // Fire mention pushes via the backend. Best-effort — if the mention
+    // ping fails, the message itself still went through.
+    if (mentionedUids.isNotEmpty || mentionEveryone) {
+      try {
+        await _api.postJson('/api/chat/mentions', body: <String, dynamic>{
+          'roomId': roomId,
+          'messageId': doc.id,
+          'senderName': senderName,
+          'preview': body,
+          'mentions': <Map<String, dynamic>>[
+            if (mentionEveryone) {'everyone': true},
+            for (final uid in mentionedUids) {'uid': uid},
+          ],
+        });
+      } catch (e, st) {
+        // Chat write succeeded; mention push is a nice-to-have. Log a
+        // non-fatal breadcrumb so we can diagnose "@mention didn't
+        // notify them" support reports without surfacing an error toast
+        // on a successful chat send.
+        FirebaseCrashlytics.instance.recordError(
+          e, st,
+          reason: 'chat.mentions push failed (chat write succeeded)',
+          fatal: false,
+        );
+      }
+    }
+
     return ChatSendResult(
       messageId: doc.id,
       text: body,
       imageUrl: null,
       messageType: ChatMessageType.text,
     );
+  }
+
+  /// Typeahead candidates for the @mention picker. Returns up to 12
+  /// users whose displayName or email contains [query]. Empty/short
+  /// queries return an empty list — caller debounces.
+  Future<List<MentionCandidate>> mentionCandidates(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return const <MentionCandidate>[];
+    try {
+      final j = await _api.getJson(
+        '/api/chat/users-for-mention?q=${Uri.encodeQueryComponent(q)}',
+      );
+      final raw = (j['candidates'] as List?) ?? const <dynamic>[];
+      return raw
+          .whereType<Map<String, dynamic>>()
+          .map(MentionCandidate.fromJson)
+          .toList(growable: false);
+    } catch (_) {
+      return const <MentionCandidate>[];
+    }
   }
 
   /// Picks an image from the gallery and uploads it. Returns
@@ -264,4 +324,38 @@ class ChatRepository {
       SetOptions(merge: true),
     );
   }
+}
+
+/// A user candidate surfaced by the @mention typeahead. The picker
+/// returns these from `ChatRepository.mentionCandidates()`. uid is the
+/// value that gets sent to the mentions endpoint when the user picks.
+class MentionCandidate {
+  const MentionCandidate({
+    required this.uid,
+    required this.displayName,
+    required this.email,
+    required this.photoURL,
+  });
+  final String uid;
+  final String displayName;
+  final String email;
+  final String photoURL;
+
+  /// What the chat input inserts when this candidate is picked. Spaces
+  /// in display names are stripped so the @mention is contiguous and
+  /// parseable. Falls back to the email-local-part when displayName is
+  /// missing.
+  String get insertionToken {
+    final src = displayName.isNotEmpty
+        ? displayName
+        : (email.contains('@') ? email.split('@').first : email);
+    return src.replaceAll(' ', '_');
+  }
+
+  factory MentionCandidate.fromJson(Map<String, dynamic> j) => MentionCandidate(
+        uid: (j['uid'] ?? '').toString(),
+        displayName: (j['displayName'] ?? '').toString(),
+        email: (j['email'] ?? '').toString(),
+        photoURL: (j['photoURL'] ?? '').toString(),
+      );
 }

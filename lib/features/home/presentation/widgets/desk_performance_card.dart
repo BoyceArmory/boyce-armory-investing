@@ -75,7 +75,7 @@ class DeskPerformanceCard extends ConsumerWidget {
                     '${p.totalTrades} trades tracked',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.60),
+                      color: Colors.white.withValues(alpha: 0.60),
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),

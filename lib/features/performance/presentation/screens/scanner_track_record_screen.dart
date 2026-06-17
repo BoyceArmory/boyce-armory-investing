@@ -1176,7 +1176,7 @@ class _OpenTile extends StatelessWidget {
             ],
           ),
           const SizedBox(width: 10),
-          _PulseDot(color: _green),
+          const _PulseDot(color: _green),
         ],
       ),
     );

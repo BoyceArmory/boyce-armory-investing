@@ -20,6 +20,10 @@ class AssetPaths {
       'assets/backgrounds/smart_money_bull.png';
   static const String bgSmartMoneyBear =
       'assets/backgrounds/smart_money_bear.png';
+  /// Neutral plain-art background used on the Lesson of the Day card.
+  /// Generic enough to sit under any lesson copy without competing.
+  static const String bgPlainCard =
+      'assets/backgrounds/blank_backgrounds_plain.png';
 
   // --- Lesson hero images ---
   static const String learnDir = 'assets/learn/';

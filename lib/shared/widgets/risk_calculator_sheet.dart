@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
@@ -169,9 +168,9 @@ class _RiskCalculatorSheetState extends State<RiskCalculatorSheet> {
               t3: _t3Reward,
             ),
             const SizedBox(height: 14),
-            Text(
+            const Text(
               'R = entry − stop. Position size = (\$ risk) ÷ R, rounded down to whole shares. '
-              'Targets assume scaled exits at 1R/2R/3R, which matches the Boyce Armory scanner\'s default target ladder.',
+              "Targets assume scaled exits at 1R/2R/3R, which matches the Boyce Armory scanner's default target ladder.",
               style: TextStyle(
                 color: AppColors.textTertiary,
                 fontSize: 11,
@@ -215,7 +214,7 @@ class _Input extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: AppColors.steel),
+          borderSide: const BorderSide(color: AppColors.steel),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),

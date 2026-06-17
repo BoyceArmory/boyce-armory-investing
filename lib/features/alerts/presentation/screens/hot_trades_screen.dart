@@ -5,11 +5,14 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/models/enums.dart';
 import '../../../../core/models/trade_alert_model.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../core/services/engagement_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
 import '../../../../shared/widgets/empty_alert_card.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/responsive_container.dart';
+import '../../../../shared/widgets/snooze_indicator_strip.dart';
+import '../../../../shared/widgets/watchlist_manager_sheet.dart';
 import '../../../scanner/presentation/widgets/scanner_card_skeleton.dart';
 import '../providers/alerts_providers.dart';
 import '../widgets/hot_trade_card.dart';
@@ -30,6 +33,11 @@ class HotTradesScreen extends ConsumerStatefulWidget {
 class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
+
+  /// When true, the visible Hot Trades list is filtered to alerts whose
+  /// symbol is in the user's watchlist. Layered on top of the mode tab —
+  /// so "Day + Watchlist" shows only day-mode alerts in your watchlist.
+  bool _watchlistOnly = false;
 
   // Index 1 is the derived 0DTE filter on top of the day slice. Index 0
   // shows everything; 2/3/4 are direct mode filters.
@@ -61,30 +69,47 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
   /// happens client-side because the source stream (`hotAlertsProvider`)
   /// already pulls every promoted alert — slicing in memory keeps the
   /// Firestore query simple and avoids per-tab indexes.
-  List<TradeAlert> _filter(List<TradeAlert> all) {
+  ///
+  /// Watchlist filter is applied AFTER the mode filter so the two layer
+  /// predictably: "Day tab + watchlist" == "day-mode alerts in your
+  /// watchlist."
+  List<TradeAlert> _filter(List<TradeAlert> all, Set<String> watchlist) {
     final int idx = _tabs.index;
+    List<TradeAlert> filtered;
     switch (idx) {
       case 0:
-        return all;
+        filtered = all;
+        break;
       case _zeroDteTabIndex:
-        return all
+        filtered = all
             .where((TradeAlert a) => a.contract?.isZeroDte == true)
             .toList(growable: false);
+        break;
       case 2:
-        return all
+        filtered = all
             .where((TradeAlert a) => a.mode == ScannerMode.day)
             .toList(growable: false);
+        break;
       case 3:
-        return all
+        filtered = all
             .where((TradeAlert a) => a.mode == ScannerMode.swing)
             .toList(growable: false);
+        break;
       case 4:
-        return all
+        filtered = all
             .where((TradeAlert a) => a.mode == ScannerMode.leaps)
             .toList(growable: false);
+        break;
       default:
-        return all;
+        filtered = all;
     }
+    if (_watchlistOnly && watchlist.isNotEmpty) {
+      filtered = filtered
+          .where((TradeAlert a) =>
+              watchlist.contains(a.symbol.toUpperCase()))
+          .toList(growable: false);
+    }
+    return filtered;
   }
 
   String _emptyEyebrow() {
@@ -148,6 +173,7 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
   @override
   Widget build(BuildContext context) {
     final AsyncValue<List<TradeAlert>> async = ref.watch(hotAlertsProvider);
+    final Set<String> watchlist = ref.watch(watchlistProvider);
 
     return Scaffold(
       backgroundColor: AppColors.obsidian,
@@ -168,6 +194,13 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
                     width: double.infinity,
                   ),
                 ),
+                // Persistent snooze chip — renders nothing when the user
+                // isn't snoozed. Compact variant to keep the dense Hot
+                // Trades layout breathing.
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, 6),
+                  child: SnoozeIndicatorStrip(compact: true),
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
                   child: Text(
@@ -176,6 +209,22 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
                   ),
                 ),
                 _ModeTabs(controller: _tabs, labels: _tabLabels),
+                const SizedBox(height: 6),
+                _WatchlistFilterRow(
+                  active: _watchlistOnly,
+                  count: watchlist.length,
+                  onToggle: () {
+                    // If the user taps the chip while their watchlist is
+                    // empty, open the manager so they understand why no
+                    // cards show. Otherwise just flip the filter state.
+                    if (watchlist.isEmpty) {
+                      WatchlistManagerSheet.show(context);
+                      return;
+                    }
+                    setState(() => _watchlistOnly = !_watchlistOnly);
+                  },
+                  onManage: () => WatchlistManagerSheet.show(context),
+                ),
                 const SizedBox(height: 8),
                 Expanded(
                   child: async.when(
@@ -199,18 +248,41 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
                       ],
                     ),
                     data: (List<TradeAlert> all) {
-                      final List<TradeAlert> shown = _filter(all);
+                      final List<TradeAlert> shown = _filter(all, watchlist);
                       if (shown.isEmpty) {
+                        // Watchlist filter on but empty result — guide the
+                        // user to either turn it off or open the manager.
+                        // Different copy from the generic "no hot trades"
+                        // empty state so they understand what's happening.
+                        final bool watchlistFilterCulled =
+                            _watchlistOnly &&
+                                watchlist.isNotEmpty &&
+                                all.isNotEmpty;
                         return ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
                           children: <Widget>[
                             EmptyAlertCard(
-                              eyebrow: _emptyEyebrow(),
-                              title: _emptyTitle(),
-                              message: _emptyMessage(),
-                              icon: _emptyIcon(),
+                              eyebrow: watchlistFilterCulled
+                                  ? 'WATCHLIST FILTER ON'
+                                  : _emptyEyebrow(),
+                              title: watchlistFilterCulled
+                                  ? 'No hot trades on your watchlist'
+                                  : _emptyTitle(),
+                              message: watchlistFilterCulled
+                                  ? 'None of the current hot trades match your watchlist tickers. Turn the Watchlist chip off above to see all hot trades, or tap "Manage" to edit your list.'
+                                  : _emptyMessage(),
+                              icon: watchlistFilterCulled
+                                  ? Icons.star_border
+                                  : _emptyIcon(),
                             ),
+                            if (!watchlistFilterCulled) ...<Widget>[
+                              const SizedBox(height: 14),
+                              _ScannerScheduleHintCard(
+                                modeIndex: _tabs.index,
+                                zeroDteIndex: _zeroDteTabIndex,
+                              ),
+                            ],
                           ],
                         );
                       }
@@ -238,6 +310,169 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Compact row between the mode tabs and the alert list. Shows the
+/// "Watchlist" toggle chip + a Manage shortcut so the user can clean up
+/// Schedule hint card paired with EmptyAlertCard on quiet days. Tells
+/// the user when alerts are expected to fire so the empty state feels
+/// intentional rather than broken. Copy varies per mode tab — day-mode
+/// runs at a faster cadence, swing scans twice daily, LEAPS twice
+/// daily on a slower window.
+class _ScannerScheduleHintCard extends StatelessWidget {
+  const _ScannerScheduleHintCard({
+    required this.modeIndex,
+    required this.zeroDteIndex,
+  });
+  final int modeIndex;
+  final int zeroDteIndex;
+
+  String get _line {
+    if (modeIndex == zeroDteIndex) {
+      return '0DTE scans every minute during the open. Plays land instantly when a same-day SPY / QQQ / IWM / DIA setup hits A grade or higher.';
+    }
+    switch (modeIndex) {
+      case 2:
+        return 'Day-mode scanner runs every minute from 9:30 AM to 1:30 PM ET. New A / A+ alerts auto-promote here.';
+      case 3:
+        return 'Swing-mode scanner runs at 10:00 AM and 3:30 PM ET. Promotes require A+ grade for multi-day setups.';
+      case 4:
+        return 'LEAPS scanner runs twice daily (10:30 AM, 2:30 PM ET). Long-dated A+ setups only — quiet by design.';
+      default:
+        return 'Scanner runs every minute during market hours and twice daily for swing / LEAPS. Promotes appear here automatically — pull down to refresh.';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: BoxDecoration(
+        color: AppColors.graphite,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.steel),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(Icons.schedule, color: AppColors.textTertiary, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _line,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// the list without leaving the screen. Active state is gold-filled;
+/// inactive is steel outline.
+class _WatchlistFilterRow extends StatelessWidget {
+  const _WatchlistFilterRow({
+    required this.active,
+    required this.count,
+    required this.onToggle,
+    required this.onManage,
+  });
+  final bool active;
+  final int count;
+  final VoidCallback onToggle;
+  final VoidCallback onManage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: onToggle,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: active
+                    ? AppColors.gold.withValues(alpha: 0.16)
+                    : AppColors.graphite,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: active
+                      ? AppColors.gold.withValues(alpha: 0.55)
+                      : AppColors.steel,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    active ? Icons.star : Icons.star_border,
+                    size: 14,
+                    color: active
+                        ? AppColors.gold
+                        : AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Watchlist',
+                    style: TextStyle(
+                      color: active
+                          ? AppColors.gold
+                          : AppColors.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                  if (count > 0) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      '· $count',
+                      style: TextStyle(
+                        color: active
+                            ? AppColors.gold
+                            : AppColors.textTertiary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: onManage,
+            icon: const Icon(Icons.tune,
+                size: 14, color: AppColors.textSecondary),
+            label: const Text(
+              'Manage',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            style: TextButton.styleFrom(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ],
       ),
     );
   }

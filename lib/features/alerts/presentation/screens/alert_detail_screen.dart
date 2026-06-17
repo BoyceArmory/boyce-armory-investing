@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
+import '../../../../shared/widgets/position_sizing_chip.dart';
 import '../../../../shared/widgets/risk_calculator_sheet.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
@@ -187,7 +188,13 @@ class _Body extends StatelessWidget {
                     Expanded(
                       child: _MiniStat(
                         label: 'Source',
-                        value: alert.source.toUpperCase(),
+                        // Map raw provenance strings to customer-friendly
+                        // copy so non-technical users see "ADMIN PICK" or
+                        // "SCANNER" instead of internal enum values.
+                        value: _friendlySource(alert.source),
+                        color: alert.source == 'manual'
+                            ? AppColors.info
+                            : null,
                       ),
                     ),
                   ],
@@ -258,6 +265,15 @@ class _Body extends StatelessWidget {
                     '· ${alert.contract!.expiration}',
                     style: tt.bodyMedium,
                   ),
+                  const SizedBox(height: 10),
+                  // Per-user position sizing — uses sizingPrefs to suggest
+                  // qty + total cost + % risk. Tap routes to Settings so
+                  // the user can edit their numbers.
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child:
+                        PositionSizingChip(contract: alert.contract),
+                  ),
                 ],
               ),
             ),
@@ -313,7 +329,7 @@ class _RMultipleCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(Icons.balance, color: AppColors.gold, size: 18),
+              const Icon(Icons.balance, color: AppColors.gold, size: 18),
               const SizedBox(width: 8),
               Text('Risk : Reward', style: tt.titleMedium),
               const Spacer(),
@@ -347,10 +363,10 @@ class _RMultipleCard extends StatelessWidget {
                 flex: (risk * 100).round().clamp(1, 1000),
                 child: Container(
                   height: 8,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.bearish,
                     borderRadius:
-                        const BorderRadius.horizontal(left: Radius.circular(4)),
+                        BorderRadius.horizontal(left: Radius.circular(4)),
                   ),
                 ),
               ),
@@ -358,10 +374,10 @@ class _RMultipleCard extends StatelessWidget {
                 flex: (reward * 100).round().clamp(1, 1000),
                 child: Container(
                   height: 8,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.bullish,
                     borderRadius:
-                        const BorderRadius.horizontal(right: Radius.circular(4)),
+                        BorderRadius.horizontal(right: Radius.circular(4)),
                   ),
                 ),
               ),
@@ -650,6 +666,21 @@ class _InvalidationCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Map the raw trade_alert `source` field to user-facing copy. Centralized
+/// so the Hot Trades eyebrow and the detail screen stay in sync.
+String _friendlySource(String raw) {
+  switch (raw) {
+    case 'manual':
+      return 'ADMIN PICK';
+    case 'auto_promote':
+      return 'SCANNER';
+    case 'scanner':
+      return 'SCANNER';
+    default:
+      return raw.toUpperCase();
   }
 }
 

@@ -8,7 +8,9 @@ import '../../../../core/services/analytics_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../shared/widgets/alert_actions_sheet.dart';
 import '../../../../shared/widgets/card_background.dart';
+import '../../../../shared/widgets/position_sizing_chip.dart';
 import '../../../../shared/widgets/ticker_logo.dart';
 import '../../../scanner/data/setup_education.dart';
 import '../../../scanner/presentation/widgets/alert_action_bar.dart';
@@ -53,12 +55,13 @@ class _HotTradeCardState extends State<HotTradeCard> {
       minHeight: 252,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
       onTap: () => setState(() => _expanded = !_expanded),
+      onLongPress: () => AlertActionsSheet.show(context, a),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Align(
             alignment: Alignment.centerRight,
-            child: _HotEyebrow(mode: a.mode),
+            child: _HotEyebrow(mode: a.mode, source: a.source),
           ),
           const SizedBox(height: 8),
           Align(
@@ -105,18 +108,28 @@ class _HotTradeCardState extends State<HotTradeCard> {
 }
 
 class _HotEyebrow extends StatelessWidget {
-  const _HotEyebrow({this.mode});
+  const _HotEyebrow({this.mode, this.source});
 
   /// Scanner mode this alert came from. When present we render a DAY / SWING /
   /// LEAPS pill next to the "HOT TRADE" label so users see at a glance what
   /// timeframe the setup applies to.
   final ScannerMode? mode;
 
+  /// Provenance string from the TradeAlert. 'manual' = admin-curated pick;
+  /// 'scanner' / 'auto_promote' = algorithmically detected. Drives the
+  /// ADMIN PICK pill so customers know which alerts are hand-selected.
+  final String? source;
+
   @override
   Widget build(BuildContext context) {
+    final bool isManual = source == 'manual';
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: <Widget>[
+        if (isManual) ...<Widget>[
+          const _AdminPickPill(),
+          const SizedBox(width: 6),
+        ],
         if (mode != null) ...<Widget>[
           _ModePill(mode: mode!),
           const SizedBox(width: 8),
@@ -124,9 +137,9 @@ class _HotEyebrow extends StatelessWidget {
         const Icon(Icons.local_fire_department,
             color: AppColors.gold, size: 18),
         const SizedBox(width: 4),
-        _ShadowedText(
+        const _ShadowedText(
           'HOT TRADE',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.gold,
             fontSize: 11,
             fontWeight: FontWeight.w800,
@@ -134,6 +147,49 @@ class _HotEyebrow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Distinctive pill shown on hand-picked admin alerts. Uses the info-blue
+/// hue so it doesn't compete with the gold HOT TRADE / mode pill, and so
+/// scanner-generated alerts (the majority) remain visually dominant in
+/// brand-gold while admin picks read as "curated" rather than "automated".
+class _AdminPickPill extends StatelessWidget {
+  const _AdminPickPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.info.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.55)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(Icons.verified_user, size: 10, color: AppColors.info),
+          SizedBox(width: 3),
+          Text(
+            'ADMIN PICK',
+            style: TextStyle(
+              color: AppColors.info,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+              shadows: <Shadow>[
+                Shadow(
+                  color: Color(0xAA000000),
+                  offset: Offset(0, 1),
+                  blurRadius: 3,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -150,6 +206,7 @@ class _ModePill extends StatelessWidget {
         ScannerMode.day => 'DAY',
         ScannerMode.swing => 'SWING',
         ScannerMode.leaps => 'LEAPS',
+        ScannerMode.scalp => 'SCALP',
       };
 
   @override
@@ -313,7 +370,7 @@ class _ExpandedSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: <Widget>[
-          _SectionTitle('WHY THIS STOCK'),
+          const _SectionTitle('WHY THIS STOCK'),
           const SizedBox(height: 6),
           _ShadowedText(
             alert.reason,
@@ -327,7 +384,7 @@ class _ExpandedSection extends StatelessWidget {
           ),
           if (alert.kind.isNotEmpty && alert.kind != 'manual') ...<Widget>[
             const SizedBox(height: 14),
-            _SectionTitle('HOW THIS SETUP WORKS'),
+            const _SectionTitle('HOW THIS SETUP WORKS'),
             const SizedBox(height: 6),
             _ShadowedText(
               SetupEducation.forKind(alert.kind),
@@ -345,6 +402,13 @@ class _ExpandedSection extends StatelessWidget {
           if (alert.contract != null) ...<Widget>[
             const SizedBox(height: 12),
             _ContractLine(alert: alert),
+            // Right-aligned to match the card's column layout so the chip
+            // sits below the contract spec without competing with it.
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: PositionSizingChip(contract: alert.contract),
+            ),
           ],
           if (alert.notes != null && alert.notes!.trim().isNotEmpty) ...<Widget>[
             const SizedBox(height: 12),
@@ -525,12 +589,12 @@ class _HotChartButton extends StatelessWidget {
           color: Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Row(
+        child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.show_chart, size: 14, color: Colors.white70),
-            const SizedBox(width: 6),
-            const Text(
+            Icon(Icons.show_chart, size: 14, color: Colors.white70),
+            SizedBox(width: 6),
+            Text(
               'CHART',
               style: TextStyle(
                 color: Colors.white70,
@@ -598,9 +662,4 @@ class _ShadowedText extends StatelessWidget {
             color: Color(0xAA000000),
             offset: Offset(0, 1),
             blurRadius: 4,
-          ),
-        ],
-      ),
-    );
-  }
-}
+        

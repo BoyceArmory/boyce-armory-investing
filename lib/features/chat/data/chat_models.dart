@@ -96,6 +96,8 @@ class ChatMessage extends Equatable {
     this.storagePath,
     this.profileImageUrl,
     this.senderEmail,
+    this.mentionedUids = const <String>[],
+    this.mentionEveryone = false,
   });
 
   final String id;
@@ -113,6 +115,12 @@ class ChatMessage extends Equatable {
   final String? storagePath;
   final String? profileImageUrl;
   final String? senderEmail;
+  /// Uids the sender tagged via @mention. Bubble border highlights when
+  /// the current viewer is in this list.
+  final List<String> mentionedUids;
+  /// True when the sender invoked @everyone. Visual cue only here — the
+  /// actual broadcast push happens server-side via /api/chat/mentions.
+  final bool mentionEveryone;
 
   bool get hasImage =>
       type == ChatMessageType.image && (imageUrl?.isNotEmpty ?? false);
@@ -139,6 +147,11 @@ class ChatMessage extends Equatable {
       storagePath: m['storagePath'] as String?,
       profileImageUrl: m['profileImageUrl'] as String?,
       senderEmail: m['senderEmail'] as String?,
+      mentionedUids: (m['mentionedUids'] as List?)
+              ?.whereType<String>()
+              .toList(growable: false) ??
+          const <String>[],
+      mentionEveryone: (m['mentionEveryone'] as bool?) ?? false,
     );
   }
 
@@ -159,6 +172,8 @@ class ChatMessage extends Equatable {
         storagePath,
         profileImageUrl,
         senderEmail,
+        mentionedUids,
+        mentionEveryone,
       ];
 }
 

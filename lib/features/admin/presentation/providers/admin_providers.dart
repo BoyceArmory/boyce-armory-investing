@@ -82,6 +82,26 @@ final FutureProvider<List<Map<String, dynamic>>> adminUsersProvider =
   return ref.watch(adminRepositoryProvider).listUsers(limit: 200);
 });
 
+/// Recent admin events (new signups, support tickets, etc.) for the
+/// Recent Activity strip on the Users tab. One-shot fetch; the tab
+/// invalidates on focus + pull-to-refresh.
+final FutureProvider<List<Map<String, dynamic>>> adminEventsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((Ref ref) {
+  return ref.watch(adminRepositoryProvider).listAdminEvents(limit: 50);
+});
+
+/// Count of unread admin events across all kinds. Drives the small badge
+/// shown next to "Recent Activity" and (later) the Users tab indicator.
+/// Derived from adminEventsProvider so a single network call backs both.
+final Provider<int> adminEventsUnreadCountProvider = Provider<int>((Ref ref) {
+  final async = ref.watch(adminEventsProvider);
+  return async.maybeWhen(
+    data: (events) =>
+        events.where((e) => (e['read'] as bool? ?? false) == false).length,
+    orElse: () => 0,
+  );
+});
+
 final FutureProvider<List<Map<String, dynamic>>> activeTradesProvider =
     FutureProvider<List<Map<String, dynamic>>>((Ref ref) {
   return ref.watch(adminRepositoryProvider).listActiveTrades(limit: 50);

@@ -112,6 +112,19 @@ class AdminRepository {
   // Read setup_stats rows (per (mode, kind) with regime breakdown). Used
   // by the Backtest screen to show measured per-detector edge.
 
+  /// Live cooldown table snapshot — every (symbol, kind, mode) currently
+  /// silenced by the scanner. Returns each row as a Map keyed by:
+  /// mode, symbol, kind, lastScore, minutesAgo, minutesUntilExpiry,
+  /// fireCount, failedAt, lastPublishedAt. Used by the admin Cooldowns
+  /// tab so the "why no AAPL alert today?" question has an answer.
+  Future<List<Map<String, dynamic>>> fetchCooldowns() async {
+    final j = await _api.getJson('/api/admin/cooldowns');
+    final rows = (j['cooldowns'] as List?) ?? const <dynamic>[];
+    return rows
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
+  }
+
   Future<List<Map<String, dynamic>>> fetchBacktestStats() async {
     final j = await _api.getJson('/api/admin/backtest/stats');
     final rows = (j['rows'] as List?) ?? const <dynamic>[];
@@ -174,6 +187,51 @@ class AdminRepository {
   Future<void> updateMyNotificationPrefsAdvanced(
       Map<String, dynamic> patch) async {
     await _api.patchJson('/api/users/me/notifications', body: patch);
+  }
+
+  /// Write/update the journal note on one of the user's own closed
+  /// trades. Empty string clears the note. Returns the persisted value
+  /// the server saw so the client can update local state without a
+  /// re-fetch.
+  Future<String> updateMyTradeNotes(String tradeId, String notes) async {
+    final j = await _api.patchJson(
+      '/api/users/me/trades/$tradeId/notes',
+      body: <String, dynamic>{'notes': notes},
+    );
+    return (j['notes'] as String?) ?? notes;
+  }
+
+  /// Self-service push diagnostic. Returns:
+  ///   - sent / failureCount / deviceCount: numbers from the FCM result
+  ///   - suppressedBy: "master_off" | "scanner_off" | "snooze" | "quiet_hours" | null
+  ///   - snoozeUntil: only present when suppressedBy=="snooze"
+  ///   - warning: present when no tokens registered (device hasn't granted push)
+  Future<Map<String, dynamic>> sendMyTestPush() async {
+    return _api.postJson('/api/users/me/test-push');
+  }
+
+  /// One-shot reset of every push-related preference back to factory
+  /// defaults. Hits the same PATCH endpoint as updateMy*; we just send
+  /// every key with its default value in a single request. Chat mutes
+  /// (which live under users/{uid}.chatMutes, not notificationPrefs)
+  /// need a separate Firestore write — the Settings screen pairs this
+  /// call with a ChatPrefsService clear so reset means "everything off."
+  Future<void> resetMyNotificationPrefs() async {
+    await _api.patchJson('/api/users/me/notifications', body: <String, dynamic>{
+      'master': true,
+      'scanner': true,
+      'hot': true,
+      'adminBuys': true,
+      'premarket': true,
+      'recap': true,
+      'announcement': true,
+      // Scalp stays OFF on reset — it's an opt-in channel.
+      'scalp': false,
+      'scannerMinGrade': 'all',
+      'scannerModes': {'day': true, 'swing': true, 'leaps': true},
+      'quietHours': {'enabled': false, 'startHour': 22, 'endHour': 6},
+      'snoozeUntil': '',
+    });
   }
 
   /// In-app notification center feed. Returns the last 50 broadcast pushes
@@ -278,6 +336,14 @@ class AdminRepository {
     return ((j['users'] as List?) ?? const []).cast<Map<String, dynamic>>();
   }
 
+  /// Rich per-user detail — user doc + push tokens count + recent
+  /// actions + watchlist preview. Backs the Users-tab tap-to-expand
+  /// bottom sheet. Errors bubble so the sheet's error state can show.
+  Future<Map<String, dynamic>> fetchUserDetail(String uid) async {
+    final j = await _api.getJson('/api/admin/users/$uid/detail');
+    return j;
+  }
+
   Future<void> setRole(String uid, String role) async {
     await _api.postJson('/api/admin/users/role', body: {'uid': uid, 'role': role});
   }
@@ -288,6 +354,32 @@ class AdminRepository {
 
   Future<void> setDisabled(String uid, bool disabled) async {
     await _api.postJson('/api/admin/users/$uid/disabled', body: {'disabled': disabled});
+  }
+
+  // ---- Admin events feed (in-app inbox for new signups, etc.) ----------
+  //
+  // Backed by the new-account-watcher cron + admin_events Firestore
+  // collection. Each event has kind, loggedAt, read, and kind-specific
+  // fields. Today the only kind is "new_account"; the schema is open so
+  // future event types (support tickets, system alerts) drop in without
+  // a migration.
+
+  /// Fetch recent admin events newest first.
+  ///   limit:      hard cap on result count (server caps at 500).
+  ///   onlyUnread: when true, only returns events with read == false.
+  Future<List<Map<String, dynamic>>> listAdminEvents({
+    int limit = 50,
+    bool onlyUnread = false,
+  }) async {
+    final qs = StringBuffer('?limit=$limit');
+    if (onlyUnread) qs.write('&unread=true');
+    final j = await _api.getJson('/api/admin/events$qs');
+    return ((j['events'] as List?) ?? const []).cast<Map<String, dynamic>>();
+  }
+
+  /// Mark a single event as read.
+  Future<void> markAdminEventRead(String id) async {
+    await _api.patchJson('/api/admin/events/$id/read');
   }
 
   // ---- Trades ----------------------------------------------------------

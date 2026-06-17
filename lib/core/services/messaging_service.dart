@@ -61,6 +61,24 @@ class MessagingService {
   /// out and back in (or switching accounts) doubled every FCM
   /// listener, so a single push tap would call the router N times
   /// after N sign-in cycles.
+  /// Returns true if the OS-level notification permission is currently
+  /// granted (authorized or provisional). False if denied or not
+  /// determined. Cheap — no request prompt, just an inspection of the
+  /// current state. Used by the home-screen banner to surface a re-
+  /// prompt when the user has revoked permission post-install.
+  Future<bool> isPushPermissionGranted() async {
+    try {
+      final s = await _messaging.getNotificationSettings();
+      return s.authorizationStatus == AuthorizationStatus.authorized ||
+          s.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (_) {
+      // If FCM isn't initialised yet (shouldn't happen post-bootstrap)
+      // treat permission as unknown-good so we don't spam users with a
+      // banner during a transient probe failure.
+      return true;
+    }
+  }
+
   Future<String?> initForUser(String uid) async {
     try {
       // Cancel any subscriptions from a previous user. Each is

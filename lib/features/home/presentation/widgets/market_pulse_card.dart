@@ -41,7 +41,7 @@ class MarketPulseCard extends ConsumerWidget {
               borderRadius: BorderRadius.circular(24),
               boxShadow: <BoxShadow>[
                 BoxShadow(
-                  color: AppColors.gold.withOpacity(0.22),
+                  color: AppColors.gold.withValues(alpha: 0.22),
                   blurRadius: 24,
                   spreadRadius: 1,
                 ),
@@ -57,7 +57,7 @@ class MarketPulseCard extends ConsumerWidget {
                 ),
                 Positioned.fill(
                   child: Container(
-                    color: Colors.black.withOpacity(0.12),
+                    color: Colors.black.withValues(alpha: 0.12),
                   ),
                 ),
                 Align(
@@ -135,9 +135,9 @@ class _SessionBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
+        color: Colors.black.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _color.withOpacity(0.7), width: 1),
+        border: Border.all(color: _color.withValues(alpha: 0.7), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -278,7 +278,7 @@ class _PulseStat extends StatelessWidget {
                 letterSpacing: 1.2,
                 shadows: <Shadow>[
                   Shadow(
-                    color: Colors.black.withOpacity(0.95),
+                    color: Colors.black.withValues(alpha: 0.95),
                     blurRadius: 8,
                   ),
                 ],

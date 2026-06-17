@@ -27,9 +27,9 @@ class SplashScreen extends StatelessWidget {
                       ?.copyWith(letterSpacing: 6, color: AppColors.gold),
                 ),
                 const SizedBox(height: 6),
-                Text(
+                const Text(
                   AppConstants.appTagline,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textTertiary,
                     fontSize: 12,
                     letterSpacing: 1,

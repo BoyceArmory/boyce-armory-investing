@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../providers/admin_providers.dart';
+import 'admin_doc_sheet.dart';
 
 /// Alerts management — sub-tabs for scanner alerts and trade alerts.
 class AlertsTab extends ConsumerStatefulWidget {
@@ -74,21 +75,44 @@ class _ScannerAlertsSection extends ConsumerStatefulWidget {
 class _ScannerAlertsSectionState extends ConsumerState<_ScannerAlertsSection> {
   String? _busyId;
 
+  void _toast(
+    String message, {
+    bool error = false,
+    SnackBarAction? action,
+  }) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              error ? Icons.error_outline : Icons.check_circle_outline,
+              color: error ? Colors.white : AppColors.obsidian,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: error ? AppColors.bearish : AppColors.gold,
+        duration: Duration(seconds: error ? 6 : 3),
+        action: action,
+      ),
+    );
+  }
+
   Future<void> _promote(String id) async {
     setState(() => _busyId = id);
     try {
       final tradeId = await ref.read(adminRepositoryProvider).promoteScannerToHot(id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Promoted to Hot Trade: $tradeId')),
-      );
+      _toast('Promoted to Hot Trade · push fired · $tradeId');
       ref.invalidate(scannerAlertsForAdminProvider);
       ref.invalidate(tradeAlertsForAdminProvider);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Promote failed: $e'), backgroundColor: AppColors.bearish),
-      );
+      _toast('Promote failed: $e', error: true);
     } finally {
       if (mounted) setState(() => _busyId = null);
     }
@@ -96,18 +120,25 @@ class _ScannerAlertsSectionState extends ConsumerState<_ScannerAlertsSection> {
 
   Future<void> _setVisibility(String id, String visibility) async {
     setState(() => _busyId = id);
+    final previousVisibility =
+        visibility == 'public' ? 'admin_only' : 'public';
     try {
       await ref.read(adminRepositoryProvider).setScannerVisibility(id, visibility);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Visibility set: $visibility')),
+      _toast(
+        visibility == 'public'
+            ? 'Alert is now visible to customers'
+            : 'Alert hidden from customers',
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: AppColors.obsidian,
+          onPressed: () => _setVisibility(id, previousVisibility),
+        ),
       );
       ref.invalidate(scannerAlertsForAdminProvider);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Update failed: $e'), backgroundColor: AppColors.bearish),
-      );
+      _toast('Visibility change failed: $e', error: true);
     } finally {
       if (mounted) setState(() => _busyId = null);
     }
@@ -152,6 +183,12 @@ class _ScannerAlertsSectionState extends ConsumerState<_ScannerAlertsSection> {
                 title: '${a['symbol']} · ${a['kind']}',
                 subtitle:
                     '${a['mode']} · ${a['direction']} · grade ${a['grade']} · score ${a['score']}',
+                onTap: () => AdminDocSheet.show(
+                  context,
+                  title: '${a['symbol']} · ${a['kind']}',
+                  subtitle: 'scanner_alerts / $id',
+                  doc: a,
+                ),
                 badges: [
                   if (a['visibility'] == 'public') const _Badge(label: 'PUBLIC', color: AppColors.bullish),
                   if (a['visibility'] == 'admin_only') const _Badge(label: 'ADMIN', color: AppColors.warning),
@@ -200,16 +237,79 @@ class _TradeAlertsSection extends ConsumerStatefulWidget {
 class _TradeAlertsSectionState extends ConsumerState<_TradeAlertsSection> {
   String? _busyId;
 
+  /// Section-local gold/red styled snackbar matching the scanner-section
+  /// + users-tab pattern. Hides the previous toast so a rapid sequence
+  /// of taps doesn't stack indistinguishable notifications.
+  void _toast(
+    String message, {
+    bool error = false,
+    SnackBarAction? action,
+  }) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              error ? Icons.error_outline : Icons.check_circle_outline,
+              color: error ? Colors.white : AppColors.obsidian,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: error ? AppColors.bearish : AppColors.gold,
+        duration: Duration(seconds: error ? 6 : 3),
+        action: action,
+      ),
+    );
+  }
+
   Future<void> _patch(String id, {bool? isHot, String? visibility}) async {
     setState(() => _busyId = id);
     try {
-      await ref.read(adminRepositoryProvider).patchTradeAlert(id, isHot: isHot, visibility: visibility);
+      await ref.read(adminRepositoryProvider).patchTradeAlert(
+            id,
+            isHot: isHot,
+            visibility: visibility,
+          );
       ref.invalidate(tradeAlertsForAdminProvider);
+      if (!mounted) return;
+      // Compose a description that names what just changed, and offer an
+      // Undo that flips back the same field. Both isHot and visibility
+      // are paired toggles so the inverse is unambiguous.
+      String label;
+      VoidCallback? undo;
+      if (isHot != null) {
+        label = isHot
+            ? 'Marked as Hot Trade · push fires on next bump'
+            : 'Removed from Hot Trades';
+        undo = () => _patch(id, isHot: !isHot);
+      } else if (visibility != null) {
+        label = visibility == 'public'
+            ? 'Alert is now visible to customers'
+            : 'Alert hidden from customers';
+        final inverse =
+            visibility == 'public' ? 'admin_only' : 'public';
+        undo = () => _patch(id, visibility: inverse);
+      } else {
+        label = 'Updated';
+      }
+      _toast(
+        label,
+        action: undo == null
+            ? null
+            : SnackBarAction(
+                label: 'Undo',
+                textColor: AppColors.obsidian,
+                onPressed: undo,
+              ),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Update failed: $e'), backgroundColor: AppColors.bearish),
-      );
+      _toast('Update failed: $e', error: true);
     } finally {
       if (mounted) setState(() => _busyId = null);
     }
@@ -256,6 +356,12 @@ class _TradeAlertsSectionState extends ConsumerState<_TradeAlertsSection> {
                     title: '${a['symbol']} · ${a['direction']}',
                     subtitle:
                         '${a['kind']} · entry ${a['entry']}${a['target'] != null ? " → ${a['target']}" : ""} · ${a['reason'] ?? ""}',
+                    onTap: () => AdminDocSheet.show(
+                      context,
+                      title: '${a['symbol']} · ${a['direction']}',
+                      subtitle: 'trade_alerts / $id',
+                      doc: a,
+                    ),
                     badges: [
                       if (a['isHot'] == true) const _Badge(label: 'HOT', color: AppColors.bearish),
                       if (a['visibility'] == 'public') const _Badge(label: 'PUBLIC', color: AppColors.bullish),
@@ -455,7 +561,7 @@ class _ComposeTradeAlertSheetState extends ConsumerState<_ComposeTradeAlertSheet
                     const Spacer(),
                     Switch(
                       value: _isHot,
-                      activeColor: AppColors.gold,
+                      activeThumbColor: AppColors.gold,
                       onChanged: (v) => setState(() => _isHot = v),
                     ),
                     const Text('Hot', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
@@ -500,19 +606,16 @@ class _AlertRow extends StatelessWidget {
     required this.subtitle,
     required this.badges,
     required this.actions,
+    this.onTap,
   });
   final String title;
   final String subtitle;
   final List<Widget> badges;
   final List<Widget> actions;
+  final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.graphite,
-        border: Border.all(color: AppColors.steel),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    final inner = Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -541,6 +644,25 @@ class _AlertRow extends StatelessWidget {
           ),
           ...actions,
         ],
+      ),
+    );
+    final decoration = BoxDecoration(
+      color: AppColors.graphite,
+      border: Border.all(color: AppColors.steel),
+      borderRadius: BorderRadius.circular(12),
+    );
+    if (onTap == null) {
+      return Container(decoration: decoration, child: inner);
+    }
+    // InkWell wrap so the ripple is bounded by the rounded corners and the
+    // PopupMenu / IconButton actions still receive the higher-priority tap.
+    return Material(
+      color: AppColors.graphite,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(decoration: decoration, child: inner),
       ),
     );
   }

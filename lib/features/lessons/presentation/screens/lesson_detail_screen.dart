@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/providers/auth_state_provider.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
@@ -10,6 +11,7 @@ import '../../../../shared/buttons/primary_button.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/premium_card.dart';
 import '../../data/lesson_models.dart';
+import '../../data/lesson_progress_service.dart';
 import '../providers/lesson_providers.dart';
 import '../widgets/learn_pill.dart';
 import '../widgets/track_style.dart';
@@ -33,6 +35,9 @@ class LessonDetailScreen extends ConsumerWidget {
       ),
     );
 
+    final completed = lookup == null
+        ? false
+        : ref.watch(isLessonCompletedProvider(lookup.lesson.id));
     return Scaffold(
       backgroundColor: AppColors.obsidian,
       appBar: AppBar(
@@ -43,6 +48,29 @@ class LessonDetailScreen extends ConsumerWidget {
               ? context.pop()
               : context.go(RoutePaths.lessonsSectionFor(sectionId)),
         ),
+        actions: <Widget>[
+          if (lookup != null)
+            IconButton(
+              tooltip:
+                  completed ? 'Mark as unread' : 'Mark as read',
+              icon: Icon(
+                completed
+                    ? Icons.check_circle
+                    : Icons.check_circle_outline,
+                color: completed ? AppColors.bullish : AppColors.gold,
+              ),
+              onPressed: () async {
+                final user = ref.read(currentFirebaseUserProvider);
+                if (user == null) return;
+                final svc = ref.read(lessonProgressServiceProvider);
+                if (completed) {
+                  await svc.markIncomplete(user.uid, lookup.lesson.id);
+                } else {
+                  await svc.markCompleted(user.uid, lookup.lesson.id);
+                }
+              },
+            ),
+        ],
       ),
       body: lookup == null
           ? const EmptyState(
@@ -346,9 +374,9 @@ class _LessonImageCard extends StatelessWidget {
                       color: Colors.black.withValues(alpha: 0.55),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const <Widget>[
+                      children: <Widget>[
                         Icon(
                           Icons.fullscreen,
                           size: 14,

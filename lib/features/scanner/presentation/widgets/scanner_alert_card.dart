@@ -10,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/card_background.dart';
+import '../../../../shared/widgets/position_sizing_chip.dart';
 import '../../../../shared/widgets/ticker_logo.dart';
 import '../../data/setup_education.dart';
 import 'alert_action_bar.dart';
@@ -160,11 +161,11 @@ class _ChartButton extends StatelessWidget {
           color: Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Row(
+        child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(Icons.show_chart, size: 14, color: Colors.white70),
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             Text(
               'CHART',
               style: TextStyle(
@@ -372,6 +373,14 @@ class _ExpandedSection extends StatelessWidget {
           if (alert.suggestedContract != null) ...<Widget>[
             const SizedBox(height: 12),
             _ContractLine(alert: alert),
+            // Per-user sizing chip — same widget as the Hot Trade card.
+            // Right-aligned to match the rest of the expanded column.
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child:
+                  PositionSizingChip(contract: alert.suggestedContract),
+            ),
             if (_hasOptionsWarnings(alert)) ...<Widget>[
               const SizedBox(height: 8),
               _OptionsWarningsRow(alert: alert),
@@ -1049,7 +1058,7 @@ class _WinRateChip extends StatelessWidget {
           Icon(Icons.trending_up, size: 11, color: _color),
           const SizedBox(width: 4),
           Text(
-            '${winRate.toStringAsFixed(0)}% · ${sampleSize}',
+            '${winRate.toStringAsFixed(0)}% · $sampleSize',
             style: TextStyle(
               color: _color,
               fontSize: 10,
@@ -1152,10 +1161,10 @@ class _WhyThisFiredPanel extends StatelessWidget {
 
     // ---- Compression flags ----
     if (t.nr7 == true) {
-      facts.add(_Fact('NR7', 'narrowest 7', AppColors.bullish));
+      facts.add(const _Fact('NR7', 'narrowest 7', AppColors.bullish));
     }
     if (t.insideBar == true) {
-      facts.add(_Fact('Inside bar', 'yes', AppColors.bullish));
+      facts.add(const _Fact('Inside bar', 'yes', AppColors.bullish));
     }
 
     // ---- Key levels ----

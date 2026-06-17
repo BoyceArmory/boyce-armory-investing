@@ -25,18 +25,35 @@ class ChatMessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (message.deleted) return const _DeletedBubble();
-    final Color borderColor = message.isAdmin
-        ? AppColors.gold.withValues(alpha: 0.55)
-        : AppColors.steel;
-    final List<BoxShadow>? shadow = message.isAdmin
+    // Did this message mention the current user? Server-side mention
+    // pings are the source of truth, but we surface a visual cue here
+    // too so the recipient sees the "you were tagged" glow even after
+    // dismissing the push notification. mentionedUids is stamped on the
+    // chat_messages doc at send time (see ChatRepository.sendText).
+    final mentionedMe =
+        message.mentionedUids.contains(currentUid);
+    final Color borderColor = mentionedMe
+        ? AppColors.info.withValues(alpha: 0.7)
+        : (message.isAdmin
+            ? AppColors.gold.withValues(alpha: 0.55)
+            : AppColors.steel);
+    final List<BoxShadow>? shadow = mentionedMe
         ? <BoxShadow>[
             BoxShadow(
-              color: AppColors.gold.withValues(alpha: 0.10),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
+              color: AppColors.info.withValues(alpha: 0.18),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
             ),
           ]
-        : null;
+        : message.isAdmin
+            ? <BoxShadow>[
+                BoxShadow(
+                  color: AppColors.gold.withValues(alpha: 0.10),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ]
+            : null;
 
     return GestureDetector(
       onLongPress: onLongPress,
@@ -58,14 +75,7 @@ class ChatMessageBubble extends StatelessWidget {
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.only(left: 45),
-                child: Text(
-                  message.text,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                    height: 1.35,
-                  ),
-                ),
+                child: _MentionStyledText(text: message.text),
               ),
             ],
             if (message.hasImage) ...<Widget>[
@@ -91,6 +101,58 @@ class ChatMessageBubble extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Renders chat message text with @everyone and @<token> spans styled in
+/// gold (everyone) or info-blue (per-user). Tokens are detected by a
+/// simple regex — anything matching `@(everyone|[A-Za-z0-9_.-]+)`. Spans
+/// preserve message text exactly so copy-paste round-trips cleanly.
+class _MentionStyledText extends StatelessWidget {
+  const _MentionStyledText({required this.text});
+  final String text;
+
+  static final RegExp _mentionRe =
+      RegExp(r'@(everyone|[A-Za-z0-9_.\-]+)');
+
+  @override
+  Widget build(BuildContext context) {
+    final spans = <TextSpan>[];
+    int cursor = 0;
+    for (final m in _mentionRe.allMatches(text)) {
+      if (m.start > cursor) {
+        spans.add(TextSpan(text: text.substring(cursor, m.start)));
+      }
+      final token = m.group(1) ?? '';
+      final isEveryone = token == 'everyone';
+      spans.add(
+        TextSpan(
+          text: m.group(0),
+          style: TextStyle(
+            color: isEveryone ? AppColors.gold : AppColors.info,
+            fontWeight: FontWeight.w800,
+            // Subtle background tint to make the tag stand out from
+            // surrounding text without being aggressive.
+            backgroundColor: (isEveryone ? AppColors.gold : AppColors.info)
+                .withValues(alpha: 0.10),
+          ),
+        ),
+      );
+      cursor = m.end;
+    }
+    if (cursor < text.length) {
+      spans.add(TextSpan(text: text.substring(cursor)));
+    }
+    return SelectableText.rich(
+      TextSpan(
+        style: const TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 14,
+          height: 1.35,
+        ),
+        children: spans,
       ),
     );
   }

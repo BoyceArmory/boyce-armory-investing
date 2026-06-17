@@ -41,9 +41,22 @@ class _BoyceArmoryAppState extends ConsumerState<BoyceArmoryApp> {
   ///
   /// Inspects `data.kind` to decide:
   ///   - `chat_broadcast` → /chat/{roomId} (ADMIN BUYS, etc.)
-  ///   - `scanner_alert`  → /scanner (existing behavior — pre-existing pushes)
+  ///   - `scanner_alert`  → /scanner/{scannerResultId} when the result id
+  ///                        is present in the payload, else /scanner as a
+  ///                        safe fallback. The detail screen renders the
+  ///                        exact setup the user got buzzed about.
+  ///   - `trade_alert`    → /alert/{alertId} when the alert id is present
+  ///                        (admin-posted Hot Trades), else /hot-trades.
+  ///   - `admin_event`    → /admin/notifications (new-signup pushes, etc.)
+  ///                        The redirect logic gates this behind isAdmin,
+  ///                        so a non-admin tapping a stray admin push will
+  ///                        bounce to home rather than crash.
   ///   - anything else    → no-op (lets the app render whatever screen it
   ///                        was already showing)
+  ///
+  /// Deep-link routing intentionally ignores the `data.deepLink` string —
+  /// we switch on `kind` + named ID fields here so a misconfigured backend
+  /// payload can't redirect taps to an arbitrary path.
   ///
   /// Safe across hot-reload because [GoRouter] tolerates being asked to go
   /// to a route while already on it.
@@ -58,7 +71,28 @@ class _BoyceArmoryAppState extends ConsumerState<BoyceArmoryApp> {
         }
         break;
       case 'scanner_alert':
-        router.go(RoutePaths.scanner);
+        final String scannerId = (data['scannerResultId'] ?? '').toString();
+        if (scannerId.isNotEmpty) {
+          router.go(RoutePaths.scannerDetailFor(scannerId));
+        } else {
+          router.go(RoutePaths.scanner);
+        }
+        break;
+      case 'trade_alert':
+        final String alertId = (data['alertId'] ?? '').toString();
+        if (alertId.isNotEmpty) {
+          router.go(RoutePaths.alertDetailFor(alertId));
+        } else {
+          router.go(RoutePaths.hotTrades);
+        }
+        break;
+      case 'admin_event':
+        router.go(RoutePaths.adminNotifications);
+        break;
+      case 'premarket':
+        // Premarket watchlist push fires once at 9:25 AM ET. Opens the
+        // dedicated /premarket screen with that day's ranked candidates.
+        router.go(RoutePaths.premarket);
         break;
       default:
         // Unknown kind: do nothing, leave the user wherever they were.

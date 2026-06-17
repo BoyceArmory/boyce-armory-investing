@@ -26,8 +26,8 @@ class EventTimelineCard extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: const [
+              const Row(
+                children: [
                   Icon(Icons.event_note_outlined, color: AppColors.gold, size: 16),
                   SizedBox(width: 8),
                   Text('TODAY · ECONOMIC EVENTS',

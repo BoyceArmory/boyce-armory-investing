@@ -128,14 +128,14 @@ class NewsScreen extends ConsumerWidget {
                   // headline mentions a watchlisted ticker. Renders ABOVE the
                   // recency-grouped feed so users see their stuff first.
                   if (watched.isNotEmpty) ...<Widget>[
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(6, 14, 6, 8),
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(6, 14, 6, 8),
                       child: Row(
                         children: <Widget>[
-                          const Icon(Icons.star,
+                          Icon(Icons.star,
                               color: AppColors.gold, size: 14),
-                          const SizedBox(width: 6),
-                          const Text(
+                          SizedBox(width: 6),
+                          Text(
                             'FROM YOUR WATCHLIST',
                             style: TextStyle(
                               color: AppColors.gold,

@@ -25,8 +25,8 @@ class MarketRegimeStrip extends ConsumerWidget {
       child: Row(
         children: [
           async.when(
-            loading: () => _RegimeBadge.loading(),
-            error: (_, __) => _RegimeBadge.unavailable(),
+            loading: () => const _RegimeBadge.loading(),
+            error: (_, __) => const _RegimeBadge.unavailable(),
             data: (o) => _RegimeBadge(regime: o.regime),
           ),
           const Spacer(),
@@ -39,9 +39,9 @@ class MarketRegimeStrip extends ConsumerWidget {
 
 class _RegimeBadge extends StatelessWidget {
   const _RegimeBadge({required this.regime}) : _loading = false, _err = false;
-  _RegimeBadge.loading()
+  const _RegimeBadge.loading()
       : regime = const MarketRegime.empty(), _loading = true, _err = false;
-  _RegimeBadge.unavailable()
+  const _RegimeBadge.unavailable()
       : regime = const MarketRegime.empty(), _loading = false, _err = true;
   final MarketRegime regime;
   final bool _loading;

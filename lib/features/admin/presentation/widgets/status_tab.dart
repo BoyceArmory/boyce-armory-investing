@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,11 +86,27 @@ class _StatusBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Filter push entries down to true failures or anything with a
+    // recorded lastError. Surface them in a dedicated card so admins
+    // don't have to scroll the Push card to find what went wrong.
+    final recentErrors = [
+      for (final e in status.push.queue.recent)
+        if (e.status == 'failed' ||
+            (e.lastError != null && e.lastError!.isNotEmpty))
+          e,
+    ];
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
       children: <Widget>[
         _LastFetchedStrip(fetchedAt: status.fetchedAt),
         const SizedBox(height: 10),
+        if (recentErrors.isNotEmpty) ...[
+          _RecentErrorsCard(
+            errors: recentErrors,
+            onJumpToPushTab: () => _jumpTo(ref, _pushTab),
+          ),
+          const SizedBox(height: 12),
+        ],
         // Service card has no other tab to jump to.
         _ServiceCard(service: status.service, scheduler: status.scheduler),
         const SizedBox(height: 12),
@@ -152,6 +170,424 @@ class _TapToTab extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// -------- recent errors card --------
+
+/// Surfaces the last failed push entries as a top-of-tab alert. Hidden
+/// when there are no errors so the Status tab stays calm during normal
+/// operation. Each row is tappable — tap jumps to the Push tab where the
+/// admin can inspect the full queue, retry, or clear.
+class _RecentErrorsCard extends StatelessWidget {
+  const _RecentErrorsCard({
+    required this.errors,
+    required this.onJumpToPushTab,
+  });
+  final List<PushEntry> errors;
+  final VoidCallback onJumpToPushTab;
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = errors.take(5).toList();
+    final extra = errors.length - shown.length;
+    return Material(
+      color: AppColors.graphite,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onJumpToPushTab();
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.bearish.withValues(alpha: 0.55),
+              width: 1.2,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.error_outline,
+                      size: 16, color: AppColors.bearish),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'RECENT ERRORS',
+                    style: TextStyle(
+                      color: AppColors.bearish,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: AppColors.bearish.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${errors.length}',
+                      style: const TextStyle(
+                        color: AppColors.bearish,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.arrow_forward,
+                      size: 12, color: AppColors.textTertiary),
+                ],
+              ),
+              const SizedBox(height: 8),
+              for (final e in shown) _ErrorListEntry(entry: e),
+              if (extra > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '+$extra more — tap to open Push tab',
+                    style: const TextStyle(
+                        color: AppColors.textTertiary,
+                        fontSize: 10.5,
+                        fontStyle: FontStyle.italic),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorListEntry extends StatelessWidget {
+  const _ErrorListEntry({required this.entry});
+  final PushEntry entry;
+  @override
+  Widget build(BuildContext context) {
+    final time = entry.sentAt ?? entry.createdAt;
+    // Nested InkWell so tapping a specific error opens the detail sheet
+    // INSTEAD of falling through to the parent card's "jump to Push tab"
+    // tap. Flutter resolves gestures innermost-first, so the parent
+    // InkWell stays inert for the row's hit region.
+    return InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        showModalBottomSheet<void>(
+          context: context,
+          backgroundColor: AppColors.obsidian,
+          isScrollControlled: true,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+          ),
+          builder: (BuildContext c) => _ErrorDetailSheet(entry: entry),
+        );
+      },
+      child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(top: 5, right: 8),
+            decoration: const BoxDecoration(
+              color: AppColors.bearish,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.title.isEmpty ? '(no title)' : entry.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '${entry.source} · ${entry.status}${time != null ? " · ${_agoShort(time)}" : ""}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: AppColors.textTertiary, fontSize: 11),
+                ),
+                if (entry.lastError != null &&
+                    entry.lastError!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Text(
+                      entry.lastError!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.bearish,
+                        fontSize: 10.5,
+                        height: 1.3,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right,
+              color: AppColors.textTertiary, size: 14),
+        ],
+      ),
+      ),
+    );
+  }
+}
+
+/// Drilldown sheet for a single failed push. The compact list entry
+/// truncates lastError to two lines; this sheet shows it full + selectable
+/// so the admin can read the entire stack / FCM error code and copy it
+/// into a bug ticket. Header surfaces the title + status, then a status
+/// block, then the full report table, then raw JSON.
+class _ErrorDetailSheet extends StatelessWidget {
+  const _ErrorDetailSheet({required this.entry});
+  final PushEntry entry;
+
+  Map<String, dynamic> _asMap() => <String, dynamic>{
+        'id': entry.id,
+        'status': entry.status,
+        'source': entry.source,
+        'title': entry.title,
+        if (entry.symbol != null) 'symbol': entry.symbol,
+        if (entry.mode != null) 'mode': entry.mode,
+        if (entry.grade != null) 'grade': entry.grade,
+        if (entry.recipientCount != null)
+          'recipientCount': entry.recipientCount,
+        if (entry.createdAt != null)
+          'createdAt': entry.createdAt!.toIso8601String(),
+        if (entry.sentAt != null) 'sentAt': entry.sentAt!.toIso8601String(),
+        if (entry.lastError != null) 'lastError': entry.lastError,
+      };
+
+  String _label(String k) {
+    switch (k) {
+      case 'id':
+        return 'Push id';
+      case 'status':
+        return 'Status';
+      case 'source':
+        return 'Source';
+      case 'title':
+        return 'Title';
+      case 'symbol':
+        return 'Symbol';
+      case 'mode':
+        return 'Mode';
+      case 'grade':
+        return 'Grade';
+      case 'recipientCount':
+        return 'Recipients';
+      case 'createdAt':
+        return 'Queued at';
+      case 'sentAt':
+        return 'Sent at';
+      case 'lastError':
+        return 'Error';
+      default:
+        return k;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final raw = _asMap();
+    final keys = raw.keys.toList();
+    final lastError = entry.lastError ?? '';
+    return DraggableScrollableSheet(
+      initialChildSize: 0.78,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (BuildContext c, ScrollController controller) {
+        return ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.textTertiary.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              children: <Widget>[
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.bearish.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.bearish),
+                  ),
+                  child: Text(
+                    entry.status.toUpperCase(),
+                    style: const TextStyle(
+                      color: AppColors.bearish,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    entry.title.isEmpty ? '(no title)' : entry.title,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (lastError.isNotEmpty) ...<Widget>[
+              const Text(
+                'ERROR DETAIL',
+                style: TextStyle(
+                  color: AppColors.bearish,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.bearish.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: AppColors.bearish.withValues(alpha: 0.55)),
+                ),
+                child: SelectableText(
+                  lastError,
+                  style: const TextStyle(
+                    color: AppColors.bearish,
+                    fontSize: 12,
+                    height: 1.5,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+            ],
+            const Text(
+              'FULL REPORT',
+              style: TextStyle(
+                color: AppColors.gold,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.graphite,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.steel),
+              ),
+              child: Column(
+                children: <Widget>[
+                  for (int i = 0; i < keys.length; i++) ...<Widget>[
+                    if (i > 0)
+                      const Divider(color: AppColors.steel, height: 1),
+                    Padding(
+                      padding:
+                          const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          SizedBox(
+                            width: 100,
+                            child: Text(
+                              _label(keys[i]),
+                              style: const TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              raw[keys[i]].toString(),
+                              textAlign: TextAlign.right,
+                              maxLines: 6,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: true,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(
+                    text:
+                        const JsonEncoder.withIndent('  ').convert(raw),
+                  ));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Raw JSON copied')),
+                  );
+                },
+                icon: const Icon(Icons.copy, size: 14, color: AppColors.gold),
+                label: const Text(
+                  'Copy raw JSON',
+                  style: TextStyle(
+                    color: AppColors.gold,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -385,7 +821,7 @@ class _ScannerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final modes = const ['day', 'swing', 'leaps'];
+    const modes = ['day', 'swing', 'leaps'];
     final anyRecent = modes.any((m) {
       final r = scanner.lastRuns[m];
       if (r?.startedAt == null) return false;
@@ -709,12 +1145,12 @@ class _BacktestHealthCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(backtestHealthProvider);
     return async.when(
-      loading: () => _Card(
+      loading: () => const _Card(
         icon: Icons.science_outlined,
         title: 'Backtest health',
         statusColor: AppColors.textTertiary,
         statusLabel: '…',
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.symmetric(vertical: 6),
           child: Text('Loading…',
               style: TextStyle(color: AppColors.textTertiary, fontSize: 12)),

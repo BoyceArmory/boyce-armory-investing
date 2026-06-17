@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/providers/auth_state_provider.dart';
 import '../../core/routing/route_paths.dart';
 import '../../core/theme/app_colors.dart';
+import '../../features/chat/presentation/providers/chat_providers.dart';
 
 /// Adaptive nav scaffold for the customer experience.
 ///
@@ -66,14 +67,21 @@ class _AppShellState extends ConsumerState<AppShell> {
   // ---- iPad / wide-screen layout: NavigationRail on the left ----------------
 
   Widget _buildRailScaffold(BuildContext context, int selected, bool isAdmin) {
+    final int chatUnread = ref.watch(chatTotalUnreadProvider);
     // Admin destination is appended only when isAdmin is true, so the rail
     // ordering stays stable for non-admins.
     final List<NavigationRailDestination> destinations =
         <NavigationRailDestination>[
       for (final _NavDestination d in _customerTabs)
         NavigationRailDestination(
-          icon: Icon(d.icon),
-          selectedIcon: Icon(d.activeIcon, color: AppColors.gold),
+          icon: _maybeBadge(
+            child: Icon(d.icon),
+            count: d.path == RoutePaths.chat ? chatUnread : 0,
+          ),
+          selectedIcon: _maybeBadge(
+            child: Icon(d.activeIcon, color: AppColors.gold),
+            count: d.path == RoutePaths.chat ? chatUnread : 0,
+          ),
           label: Text(d.label),
         ),
       if (isAdmin)
@@ -134,7 +142,13 @@ class _AppShellState extends ConsumerState<AppShell> {
       BuildContext context, int selected, bool isAdmin) {
     return Scaffold(
       backgroundColor: AppColors.obsidian,
-      extendBody: true,
+      // extendBody intentionally false: when true, scrollable children
+      // had their final ~114px (nav bar 80 + iOS home indicator 34) hidden
+      // behind the NavigationBar because typical screens only pad bottom 24.
+      // With extendBody: false the Scaffold reserves the nav bar height
+      // for itself, so every screen renders its full content above the
+      // chrome with no per-screen padding hack.
+      extendBody: false,
       body: SafeArea(bottom: false, child: widget.child),
       floatingActionButton: isAdmin
           ? FloatingActionButton.extended(
@@ -160,8 +174,18 @@ class _AppShellState extends ConsumerState<AppShell> {
           destinations: <NavigationDestination>[
             for (final _NavDestination d in _customerTabs)
               NavigationDestination(
-                icon: Icon(d.icon),
-                selectedIcon: Icon(d.activeIcon, color: AppColors.gold),
+                icon: _maybeBadge(
+                  child: Icon(d.icon),
+                  count: d.path == RoutePaths.chat
+                      ? ref.watch(chatTotalUnreadProvider)
+                      : 0,
+                ),
+                selectedIcon: _maybeBadge(
+                  child: Icon(d.activeIcon, color: AppColors.gold),
+                  count: d.path == RoutePaths.chat
+                      ? ref.watch(chatTotalUnreadProvider)
+                      : 0,
+                ),
                 label: d.label,
               ),
           ],
@@ -177,4 +201,18 @@ class _NavDestination {
   final IconData icon;
   final IconData activeIcon;
   final String label;
+}
+
+/// Wrap a nav icon with Flutter's Badge widget when `count` > 0. Returns
+/// the child unchanged otherwise. Caps display at "99+" so the badge
+/// stays readable. Used by the chat-tab unread rollup.
+Widget _maybeBadge({required Widget child, required int count}) {
+  if (count <= 0) return child;
+  return Badge(
+    label: Text(count >= 99 ? '99+' : '$count'),
+    backgroundColor: AppColors.gold,
+    textColor: AppColors.obsidian,
+    textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 10),
+    child: child,
+  );
 }

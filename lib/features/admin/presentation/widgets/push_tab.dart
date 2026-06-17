@@ -370,7 +370,7 @@ class _DeviceRow extends StatelessWidget {
     final platform = row['platform']?.toString() ?? 'unknown';
     final id = row['id']?.toString() ?? '';
     final uid = (row['uid']?.toString() ?? '');
-    final uidShort = uid.length > 12 ? uid.substring(0, 12) + '...' : uid;
+    final uidShort = uid.length > 12 ? '${uid.substring(0, 12)}...' : uid;
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
@@ -467,7 +467,7 @@ class _AnnouncementDialogState extends State<_AnnouncementDialog> {
           SwitchListTile(
             value: _force,
             onChanged: (v) => setState(() => _force = v),
-            activeColor: AppColors.bearish,
+            activeThumbColor: AppColors.bearish,
             contentPadding: EdgeInsets.zero,
             title: const Text('Force delivery (bypass user mutes)',
                 style: TextStyle(

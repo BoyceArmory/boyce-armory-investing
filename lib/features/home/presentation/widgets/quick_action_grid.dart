@@ -17,7 +17,7 @@ class QuickActionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<_Action> actions = const <_Action>[
+    const List<_Action> actions = <_Action>[
       _Action(
         asset: AssetPaths.btnHotTrades,
         path: RoutePaths.hotTrades,

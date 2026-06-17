@@ -6,10 +6,12 @@ import 'package:go_router/go_router.dart';
 import '../providers/auth_state_provider.dart';
 import '../services/analytics_service.dart';
 import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
+import '../../features/admin/presentation/screens/admin_notifications_screen.dart';
 import '../../features/support/presentation/screens/support_ticket_screen.dart';
 import '../../features/alerts/presentation/screens/alert_detail_screen.dart';
 import '../../features/alerts/presentation/screens/hot_trades_screen.dart';
 import '../../features/alerts/presentation/screens/premarket_screen.dart';
+import '../../features/profile/presentation/screens/changelog_screen.dart';
 import '../../features/profile/presentation/screens/settings_screen.dart';
 import '../../features/home/presentation/screens/news_screen.dart';
 import '../../features/admin/presentation/screens/backtest_screen.dart';
@@ -166,6 +168,16 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             const AdminDashboardScreen(),
       ),
 
+      // Admin notifications inbox — must come after the parent /admin
+      // route in this top-level list since GoRouter matches the first
+      // pattern that fits. With distinct paths the ordering is moot, but
+      // explicit registration here makes the intent clear.
+      GoRoute(
+        path: RoutePaths.adminNotifications,
+        builder: (BuildContext c, GoRouterState s) =>
+            const AdminNotificationsScreen(),
+      ),
+
       // Support ticket (full-screen) — opened from Profile.
       GoRoute(
         path: RoutePaths.supportTicket,
@@ -196,6 +208,11 @@ final Provider<GoRouter> appRouterProvider = Provider<GoRouter>((Ref ref) {
             path: RoutePaths.settings,
             builder: (BuildContext c, GoRouterState s) =>
                 const SettingsScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.changelog,
+            builder: (BuildContext c, GoRouterState s) =>
+                const ChangelogScreen(),
           ),
           GoRoute(
             path: RoutePaths.news,

@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +19,7 @@ import '../../../admin/presentation/providers/admin_providers.dart';
 import '../../data/chat_models.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/chat_message_bubble.dart';
+import '../widgets/mention_picker.dart';
 
 const List<String> _kReactionOptions = <String>[
   '🔥', '📈', '💰', '👏', '🚀', '🐻', '✅', '👀',
@@ -34,13 +36,198 @@ class ChatRoomScreen extends ConsumerStatefulWidget {
 
 class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
   final TextEditingController _composer = TextEditingController();
+  // FocusNode lets us re-focus the composer after a successful send so
+  // users can keep typing without re-tapping the field. Disposed in the
+  // dispose() below alongside the controller.
+  final FocusNode _composerFocus = FocusNode();
+  // Holds the @mentions the picker has resolved for this draft. Cleared
+  // after a successful send so the next message starts fresh.
+  final MentionState _mentionState = MentionState();
   bool _sending = false;
   bool _uploading = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Stamp "read up to now" on enter so the unread badge clears
+    // immediately for this room. We do it via a post-frame callback so
+    // ref.read is safe (initState runs before the widget is mounted).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _markRead());
+  }
+
+  @override
   void dispose() {
+    // Re-stamp on exit so any messages that arrived while the user was
+    // looking at the room are counted as read. Best-effort: we kick off
+    // the write but don't await — dispose can't be async.
+    final user = ref.read(currentFirebaseUserProvider);
+    if (user != null) {
+      ref
+          .read(chatPrefsServiceProvider)
+          .markRoomRead(user.uid, widget.roomId)
+          .ignore();
+    }
     _composer.dispose();
+    _composerFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> _markRead() async {
+    final user = ref.read(currentFirebaseUserProvider);
+    if (user == null) return;
+    try {
+      await ref
+          .read(chatPrefsServiceProvider)
+          .markRoomRead(user.uid, widget.roomId);
+    } catch (e, st) {
+      // Best-effort — the next room-enter will retry. Breadcrumb only —
+      // if users report "badge won't clear" we have a trail back to the
+      // specific Firestore error without surfacing an error toast on
+      // every room enter.
+      FirebaseCrashlytics.instance.recordError(
+        e, st,
+        reason: 'chat.markRoomRead failed (room: ${widget.roomId})',
+        fatal: false,
+      );
+    }
+  }
+
+  /// Long-press the bell → choose a duration. Saves `chatMutes: { roomId:
+  /// ISO timestamp }`. Backend filter treats future timestamps as muted
+  /// and ignores expired ones automatically, so the user doesn't need to
+  /// remember to un-mute. Tap (not long-press) still uses the binary
+  /// forever-mute toggle from `_toggleMute`.
+  Future<void> _pickMuteDuration() async {
+    final user = ref.read(currentFirebaseUserProvider);
+    if (user == null) {
+      context.showSnack('Sign in to change notifications.', isError: true);
+      return;
+    }
+    final picked = await showModalBottomSheet<Duration>(
+      context: context,
+      backgroundColor: AppColors.obsidian,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (BuildContext c) {
+        const options = <(String, Duration)>[
+          ('15 min', Duration(minutes: 15)),
+          ('1 hour', Duration(hours: 1)),
+          ('4 hours', Duration(hours: 4)),
+          ('8 hours', Duration(hours: 8)),
+          ('24 hours', Duration(hours: 24)),
+        ];
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.textTertiary.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const Text(
+                  'MUTE THIS ROOM',
+                  style: TextStyle(
+                    color: AppColors.gold,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Pick a window. Mute auto-clears when the timer expires — no need to come back here.',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    for (final (label, dur) in options)
+                      InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => Navigator.pop(c, dur),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.gold.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color:
+                                    AppColors.gold.withValues(alpha: 0.5)),
+                          ),
+                          child: Text(
+                            label,
+                            style: const TextStyle(
+                              color: AppColors.gold,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (picked == null) return;
+    final until = DateTime.now().add(picked);
+    try {
+      await ref
+          .read(chatPrefsServiceProvider)
+          .setRoomMutedUntil(user.uid, widget.roomId, until);
+      if (mounted) {
+        final h = until.toLocal().hour.toString().padLeft(2, '0');
+        final m = until.toLocal().minute.toString().padLeft(2, '0');
+        context.showSnack('Muted until $h:$m');
+      }
+    } catch (e) {
+      if (mounted) context.showSnack('Failed: $e', isError: true);
+    }
+  }
+
+  Future<void> _toggleMute() async {
+    final user = ref.read(currentFirebaseUserProvider);
+    if (user == null) {
+      context.showSnack('Sign in to change notifications.', isError: true);
+      return;
+    }
+    final muted = ref.read(chatRoomMutedProvider(widget.roomId));
+    try {
+      await ref
+          .read(chatPrefsServiceProvider)
+          .setRoomMuted(user.uid, widget.roomId, !muted);
+      if (mounted) {
+        context.showSnack(
+          !muted ? 'Muted this room' : 'Unmuted this room',
+        );
+      }
+    } catch (e) {
+      if (mounted) context.showSnack('Failed: $e', isError: true);
+    }
   }
 
   ChatRoomDef? _resolveRoom() =>
@@ -82,6 +269,11 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
         );
         return;
       }
+      // Snapshot mentions BEFORE clearing. The picker state lives across
+      // sends so we have to copy out before resetting.
+      final mentionedUids =
+          _mentionState.mentionedUids.toList(growable: false);
+      final mentionEveryone = _mentionState.everyone;
       final ChatSendResult? sent =
           await ref.read(chatRepositoryProvider).sendText(
                 roomId: room.id,
@@ -90,7 +282,17 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
                 senderName: _senderName(appUser, fbUser, isAdmin: isAdmin),
                 profileImageUrl: appUser?.photoUrl,
                 isAdmin: isAdmin,
+                mentionedUids: mentionedUids,
+                mentionEveryone: mentionEveryone,
               );
+      if (sent != null) {
+        // Successful send — reset the picker state for the next message
+        // and re-focus the composer so the keyboard stays up. Without
+        // this, every send dismisses the keyboard and the user has to
+        // tap the field again to keep going.
+        _mentionState.clear();
+        if (mounted) _composerFocus.requestFocus();
+      }
       if (sent != null && room.broadcastPush && isAdmin) {
         await _broadcastIfBroadcastRoom(room: room, result: sent);
       }
@@ -437,6 +639,24 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     );
   }
 
+  /// Open a bottom-sheet search over the recent messages already in
+  /// memory. Client-side filter keeps it cheap — no extra reads against
+  /// Firestore. The user can tap a result to dismiss; the bubble for it
+  /// is already on screen in the underlying list.
+  Future<void> _openSearchSheet(List<ChatMessage> messages) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.carbon,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (BuildContext c) {
+        return _ChatSearchSheet(messages: messages);
+      },
+    );
+  }
+
   String _emptyText(String roomId) {
     switch (roomId) {
       case 'gains':
@@ -457,6 +677,8 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     final User? fbUser = ref.watch(currentFirebaseUserProvider);
     final String currentUid = fbUser?.uid ?? '';
 
+    final muted = ref.watch(chatRoomMutedProvider(widget.roomId));
+
     return Scaffold(
       backgroundColor: AppColors.obsidian,
       appBar: AppBar(
@@ -467,6 +689,28 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
               ? context.pop()
               : context.go(RoutePaths.chat),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Search this room',
+            onPressed: () => _openSearchSheet(async.asData?.value ?? const []),
+            icon: const Icon(Icons.search, color: AppColors.gold),
+          ),
+          GestureDetector(
+            onLongPress: _pickMuteDuration,
+            child: IconButton(
+              tooltip: muted
+                  ? 'Unmute this room (long-press for timed mute)'
+                  : 'Mute this room (long-press for timed mute)',
+              onPressed: _toggleMute,
+              icon: Icon(
+                muted
+                    ? Icons.notifications_off
+                    : Icons.notifications_active,
+                color: muted ? AppColors.textTertiary : AppColors.gold,
+              ),
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: <Widget>[
@@ -518,15 +762,26 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
           // info banner so users understand why they can't post.
           if ((room?.adminOnly ?? false) && !ref.watch(isAdminProvider))
             const _ReadOnlyBanner()
-          else
+          else ...[
+            // @mention typeahead — listens to the composer and renders
+            // candidates above the input when the user types @<query>.
+            // The picker also surfaces persistent chips for already-
+            // resolved mentions so the sender sees who they're pinging.
+            MentionPicker(
+              controller: _composer,
+              state: _mentionState,
+              canMentionEveryone: ref.watch(isAdminProvider),
+            ),
             _Composer(
               controller: _composer,
+              focusNode: _composerFocus,
               allowImages: room?.allowImages ?? true,
               sending: _sending,
               uploading: _uploading,
               onSend: _sendText,
               onUpload: _sendImage,
             ),
+          ],
         ],
       ),
     );
@@ -547,8 +802,8 @@ class _ReadOnlyBanner extends StatelessWidget {
           color: AppColors.carbon,
           border: Border(top: BorderSide(color: AppColors.steel, width: 0.5)),
         ),
-        child: Row(
-          children: const <Widget>[
+        child: const Row(
+          children: <Widget>[
             Icon(Icons.lock_outline, size: 16, color: AppColors.gold),
             SizedBox(width: 10),
             Expanded(
@@ -605,6 +860,7 @@ class _UploadBanner extends StatelessWidget {
 class _Composer extends StatelessWidget {
   const _Composer({
     required this.controller,
+    required this.focusNode,
     required this.allowImages,
     required this.sending,
     required this.uploading,
@@ -612,6 +868,7 @@ class _Composer extends StatelessWidget {
     required this.onUpload,
   });
   final TextEditingController controller;
+  final FocusNode focusNode;
   final bool allowImages;
   final bool sending;
   final bool uploading;
@@ -645,6 +902,7 @@ class _Composer extends StatelessWidget {
             Expanded(
               child: TextField(
                 controller: controller,
+                focusNode: focusNode,
                 enabled: canInteract,
                 style: const TextStyle(color: AppColors.textPrimary),
                 minLines: 1,
@@ -686,6 +944,159 @@ class _Composer extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Lightweight in-memory search over the messages currently streamed
+/// into the room view. Highlights are not implemented — we just match
+/// case-insensitively against the message text and sender name, then
+/// render a tappable preview. Empty/short queries show recent messages
+/// so the user can scrub even without typing.
+class _ChatSearchSheet extends StatefulWidget {
+  const _ChatSearchSheet({required this.messages});
+  final List<ChatMessage> messages;
+
+  @override
+  State<_ChatSearchSheet> createState() => _ChatSearchSheetState();
+}
+
+class _ChatSearchSheetState extends State<_ChatSearchSheet> {
+  final TextEditingController _q = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  List<ChatMessage> get _filtered {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) {
+      return widget.messages.where((m) => !m.deleted).take(40).toList();
+    }
+    return widget.messages
+        .where((m) =>
+            !m.deleted &&
+            (m.text.toLowerCase().contains(q) ||
+                m.senderName.toLowerCase().contains(q)))
+        .take(80)
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final results = _filtered;
+    return Padding(
+      padding: EdgeInsets.only(bottom: viewInsets),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              const Row(
+                children: <Widget>[
+                  Icon(Icons.search, color: AppColors.gold),
+                  SizedBox(width: 10),
+                  Text(
+                    'Search this room',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _q,
+                autofocus: true,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(
+                  hintText: 'Find a word, ticker, or sender…',
+                  prefixIcon: Icon(Icons.filter_list, color: AppColors.gold),
+                ),
+                onChanged: (v) => setState(() => _query = v),
+              ),
+              const SizedBox(height: 12),
+              if (results.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Text(
+                    'No matches in the last 100 messages.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textTertiary),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: results.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(color: AppColors.steel, height: 1),
+                    itemBuilder: (BuildContext c, int i) {
+                      final m = results[i];
+                      return ListTile(
+                        dense: true,
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 4),
+                        title: Text(
+                          m.senderName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.gold,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                        subtitle: Text(
+                          m.text.isEmpty ? '(image)' : m.text,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                        trailing: Text(
+                          _fmtTime(m.createdAt),
+                          style: const TextStyle(
+                            color: AppColors.textTertiary,
+                            fontSize: 11,
+                          ),
+                        ),
+                        onTap: () => Navigator.of(context).pop(),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _fmtTime(DateTime t) {
+    final local = t.toLocal();
+    final now = DateTime.now();
+    final sameDay = local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
+    final h = local.hour.toString().padLeft(2, '0');
+    final m = local.minute.toString().padLeft(2, '0');
+    if (sameDay) return '$h:$m';
+    return '${local.month}/${local.day}';
   }
 }
 

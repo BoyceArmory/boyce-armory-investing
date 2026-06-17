@@ -45,23 +45,41 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
     return Scaffold(
       backgroundColor: AppColors.obsidian,
       body: SafeArea(
-        child: tradesAsync.when(
-          loading: () => const Center(child: LoadingIndicator()),
-          error: (Object e, _) => ErrorState(
-            message: 'Could not load performance',
-            details: '$e',
-          ),
-          data: (List<ClosedTrade> raw) {
-            final List<ClosedTrade> filtered = _range.filter(raw);
-            final PerfAnalytics a = PerfAnalytics.fromTrades(filtered);
-            return _Body(
-              all: raw,
-              filtered: filtered,
-              analytics: a,
-              range: _range,
-              onRangeChanged: (PerfRange r) => setState(() => _range = r),
-            );
+        child: RefreshIndicator(
+          color: AppColors.gold,
+          backgroundColor: AppColors.graphite,
+          onRefresh: () async {
+            // Re-fetch the closed trades. Anything downstream
+            // (analytics, equity curve, monthly breakdown) recomputes
+            // from the new list automatically since they're pure
+            // functions of `filtered`.
+            ref.invalidate(userClosedTradesProvider);
+            await ref.read(userClosedTradesProvider.future);
           },
+          child: tradesAsync.when(
+            loading: () => const Center(child: LoadingIndicator()),
+            error: (Object e, _) => ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: <Widget>[
+                const SizedBox(height: 60),
+                ErrorState(
+                  message: 'Could not load performance',
+                  details: '$e',
+                ),
+              ],
+            ),
+            data: (List<ClosedTrade> raw) {
+              final List<ClosedTrade> filtered = _range.filter(raw);
+              final PerfAnalytics a = PerfAnalytics.fromTrades(filtered);
+              return _Body(
+                all: raw,
+                filtered: filtered,
+                analytics: a,
+                range: _range,
+                onRangeChanged: (PerfRange r) => setState(() => _range = r),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -100,6 +118,13 @@ class _Body extends StatelessWidget {
         const SizedBox(height: 14),
         FadeSlideIn(child: _StatsHero(analytics: analytics)),
         const SizedBox(height: 14),
+        if (analytics.isEmpty) ...<Widget>[
+          const FadeSlideIn(
+            delay: Duration(milliseconds: 60),
+            child: _MyTradesEmptyStateCard(),
+          ),
+          const SizedBox(height: 14),
+        ],
         if (!analytics.isEmpty) ...<Widget>[
           FadeSlideIn(
             delay: const Duration(milliseconds: 60),
@@ -996,6 +1021,126 @@ class _StreaksCard extends StatelessWidget {
 //  (RoutePaths.trackRecord). Performance is the user's own trades; scanner
 //  stats live on their own screen so the two don't dilute each other.
 // ===========================================================================
+/// First-visit / zero-state card for the My Trades tab. When a user has
+/// no closed trades yet the equity curve + breakdown sections are
+/// hidden (since they would render empty charts), and the page would
+/// look hollow with just the stats hero showing dashes. This card fills
+/// that space with intentional guidance about how the track record
+/// fills in over time.
+class _MyTradesEmptyStateCard extends StatelessWidget {
+  const _MyTradesEmptyStateCard();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      decoration: BoxDecoration(
+        color: AppColors.graphite,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.steel),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(Icons.show_chart, color: AppColors.gold, size: 22),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'No closed trades yet',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10),
+          Text(
+            'Your personal track record will live here once trades start closing. Each card on Hot Trades and Scanner has a "Took" button — tap it when you enter a position, then mark a winner or loss when you exit. Closed trades feed this page automatically.',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              height: 1.45,
+            ),
+          ),
+          SizedBox(height: 14),
+          _StepRow(
+            n: '1',
+            label: 'Tap "Took" on a Hot Trade or Scanner card when you enter.',
+          ),
+          SizedBox(height: 6),
+          _StepRow(
+            n: '2',
+            label: 'Tap "Closed" when you exit. Choose Win or Loss + R-multiple.',
+          ),
+          SizedBox(height: 6),
+          _StepRow(
+            n: '3',
+            label: 'Stats, equity curve, and setup breakdown populate automatically.',
+          ),
+          SizedBox(height: 14),
+          Text(
+            'Want to see the team\'s track record while you build yours? Tap the Scanner Track Record tab above.',
+            style: TextStyle(
+              color: AppColors.textTertiary,
+              fontSize: 11,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepRow extends StatelessWidget {
+  const _StepRow({required this.n, required this.label});
+  final String n;
+  final String label;
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Container(
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.gold.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(color: AppColors.gold),
+          ),
+          child: Text(
+            n,
+            style: const TextStyle(
+              color: AppColors.gold,
+              fontWeight: FontWeight.w900,
+              fontSize: 11,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _TrackRecordCTA extends StatelessWidget {
   const _TrackRecordCTA();
   @override
@@ -1236,10 +1381,10 @@ class _DisclaimerCard extends StatelessWidget {
   const _DisclaimerCard();
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
+    return const PremiumCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const <Widget>[
+        children: <Widget>[
           Text(
             'PERFORMANCE DISCLAIMER',
             style: TextStyle(

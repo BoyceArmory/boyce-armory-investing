@@ -85,9 +85,9 @@ class VixGaugeCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              Row(
+              const Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
+                children: [
                   Text('0', style: TextStyle(color: AppColors.textTertiary, fontSize: 9)),
                   Text('15', style: TextStyle(color: AppColors.textTertiary, fontSize: 9)),
                   Text('20', style: TextStyle(color: AppColors.textTertiary, fontSize: 9)),

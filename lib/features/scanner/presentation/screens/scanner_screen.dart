@@ -11,6 +11,7 @@ import '../../../../shared/animations/fade_slide_in.dart';
 import '../../../../shared/widgets/empty_alert_card.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/responsive_container.dart';
+import '../../../../shared/widgets/snooze_indicator_strip.dart';
 import '../providers/scanner_providers.dart';
 import '../widgets/scanner_alert_card.dart';
 import '../widgets/scanner_card_skeleton.dart';
@@ -112,6 +113,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       ScannerMode.day => 'DAY SCANNER QUIET',
       ScannerMode.swing => 'SWING SCANNER QUIET',
       ScannerMode.leaps => 'LEAPS SCANNER QUIET',
+      ScannerMode.scalp => 'SCALP SCANNER QUIET',
     };
   }
 
@@ -122,6 +124,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       ScannerMode.day => 'No day setups',
       ScannerMode.swing => 'No swing setups',
       ScannerMode.leaps => 'No LEAPS candidates',
+      ScannerMode.scalp => 'No scalp setups',
     };
   }
 
@@ -139,6 +142,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         'Swing scanner runs every 5 minutes during US market hours on the large-cap universe. Pull down to refresh.',
       ScannerMode.leaps =>
         'LEAPS scanner runs hourly during US market hours on long-uptrend candidates. Daily-candle setups update slowly by design.',
+      ScannerMode.scalp =>
+        '0DTE 5-min scalp scanner runs every 30s from 9:35 AM – 3:30 PM ET on SPY / QQQ / IWM / DIA + mega-caps. Alerts expire after 10 minutes — react fast.',
     };
   }
 
@@ -163,6 +168,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                 fit: BoxFit.contain,
                 width: double.infinity,
               ),
+            ),
+            // Persistent snooze chip — same compact variant as Hot Trades.
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 6),
+              child: SnoozeIndicatorStrip(compact: true),
             ),
             // Admin Public/All toggle stays as its own row below the banner
             // so the brand image isn't competing with controls.
@@ -348,17 +358,4 @@ class _AdminToggle extends StatelessWidget {
                 ? AppColors.gold.withValues(alpha: 0.4)
                 : Colors.transparent,
           ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? AppColors.gold : AppColors.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
-          ),
-        ),
-      ),
-    );
-  }
-}
+       

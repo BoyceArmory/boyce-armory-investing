@@ -56,7 +56,10 @@ extension UserRoleX on UserRole {
       s == 'admin' ? UserRole.admin : UserRole.customer;
 }
 
-enum ScannerMode { day, swing, leaps }
+// scalp = 0DTE 5-min mode (June 2026, opt-in). Same wire format as the
+// backend; the Flutter UI surfaces it as a separate tab on Scanner so
+// users who haven't opted in via Settings can still scroll past it.
+enum ScannerMode { day, swing, leaps, scalp }
 
 extension ScannerModeX on ScannerMode {
   String get wire => name;
@@ -64,11 +67,13 @@ extension ScannerModeX on ScannerMode {
         ScannerMode.day => 'Day',
         ScannerMode.swing => 'Swing',
         ScannerMode.leaps => 'LEAPS',
+        ScannerMode.scalp => 'Scalp',
       };
 
   static ScannerMode fromWire(String? s) => switch (s) {
         'day' => ScannerMode.day,
         'leaps' => ScannerMode.leaps,
+        'scalp' => ScannerMode.scalp,
         _ => ScannerMode.swing,
       };
 }

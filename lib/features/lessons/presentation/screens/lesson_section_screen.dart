@@ -57,9 +57,9 @@ class _Body extends StatelessWidget {
           child: _SectionHeader(section: section, style: ts),
         ),
         const SizedBox(height: 16),
-        FadeSlideIn(
-          delay: const Duration(milliseconds: 70),
-          child: const _QuickStartCard(),
+        const FadeSlideIn(
+          delay: Duration(milliseconds: 70),
+          child: _QuickStartCard(),
         ),
         const SizedBox(height: 20),
         Text(

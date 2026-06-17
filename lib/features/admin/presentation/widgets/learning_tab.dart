@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/api_providers.dart';
@@ -186,6 +189,19 @@ class _Body extends StatelessWidget {
     );
   }
 
+  static const _scoreExplain =
+      'Does a higher score predict a higher win rate? In a healthy model, win rate should rise monotonically as score climbs (50-60 → 60-70 → 70+). If 70+ wins LESS than 60-70, the scorer is overweighting noisy features — recalibrate.';
+  static const _regimeExplain =
+      'Bull / bear / chop expectancy. Most setups are regime-specific. If a detector is only profitable in bull, raise its grade threshold during bear or demote it conditionally.';
+  static const _sessionExplain =
+      'Morning (9:30-11:30) / lunch (11:30-13:30) / afternoon (13:30-16:00) win rates. Most day-mode detectors live in morning; if lunch is bleeding, GATE 4 may need to widen the lunch suppression window.';
+  static const _catalystExplain =
+      'Trades stamped with a news-catalyst boost vs trades without. Lift = with - without. Negative lift means the +5 catalyst score boost is mis-calibrated — the news isn\'t actually predictive.';
+  static const _flowExplain =
+      'Trades where Polygon options flow agreed with the signal direction vs trades where it didn\'t. Positive lift confirms cross-API flow is a useful signal worth keeping in the scorer.';
+  static const _detectorExplain =
+      'Per-detector profitability (min 5 trades). Top = positive expectancy contributors; worst = drag on the system. Use this view to rank what to retire, what to keep, what to amplify.';
+
   List<_RowSpec> _scoreBandRows(Map<String, dynamic> d) {
     final List<dynamic> bands = (d['scoreBands'] as List<dynamic>?) ?? <dynamic>[];
     return bands.map((dynamic e) {
@@ -195,6 +211,9 @@ class _Body extends StatelessWidget {
         right:
             '${_pct(m['winRate'])} • ${(m['totalTrades'] as num?)?.toInt() ?? 0} trades',
         accentR: (m['avgRMultiple'] as num?)?.toDouble() ?? 0,
+        raw: m,
+        sectionTitle: 'SCORE-BAND CALIBRATION',
+        sectionExplain: _scoreExplain,
       );
     }).toList();
   }
@@ -208,6 +227,9 @@ class _Body extends StatelessWidget {
         right:
             '${_pct(m['winRate'])} • ${(m['totalTrades'] as num?)?.toInt() ?? 0} trades',
         accentR: (m['avgRMultiple'] as num?)?.toDouble() ?? 0,
+        raw: m,
+        sectionTitle: 'REGIME EXPECTANCY',
+        sectionExplain: _regimeExplain,
       );
     }).toList();
   }
@@ -221,6 +243,9 @@ class _Body extends StatelessWidget {
         right:
             '${_pct(m['winRate'])} • ${(m['totalTrades'] as num?)?.toInt() ?? 0} trades',
         accentR: (m['avgRMultiple'] as num?)?.toDouble() ?? 0,
+        raw: m,
+        sectionTitle: 'SESSION EXPECTANCY',
+        sectionExplain: _sessionExplain,
       );
     }).toList();
   }
@@ -236,17 +261,26 @@ class _Body extends StatelessWidget {
         right:
             '${_pct(w['winRate'])} • ${(w['totalTrades'] as num?)?.toInt() ?? 0} trades',
         accentR: (w['avgRMultiple'] as num?)?.toDouble() ?? 0,
+        raw: w,
+        sectionTitle: 'NEWS CATALYST · WITH NEWS',
+        sectionExplain: _catalystExplain,
       ),
       _RowSpec(
         label: 'NO NEWS',
         right:
             '${_pct(wo['winRate'])} • ${(wo['totalTrades'] as num?)?.toInt() ?? 0} trades',
         accentR: (wo['avgRMultiple'] as num?)?.toDouble() ?? 0,
+        raw: wo,
+        sectionTitle: 'NEWS CATALYST · NO NEWS',
+        sectionExplain: _catalystExplain,
       ),
       _RowSpec(
         label: 'LIFT',
         right: '${_pct(c['lift'])} edge',
         accentR: (c['lift'] as num?)?.toDouble() ?? 0,
+        raw: c,
+        sectionTitle: 'NEWS CATALYST · LIFT',
+        sectionExplain: _catalystExplain,
       ),
     ];
   }
@@ -264,17 +298,26 @@ class _Body extends StatelessWidget {
         right:
             '${_pct(w['winRate'])} • ${(w['totalTrades'] as num?)?.toInt() ?? 0} trades',
         accentR: (w['avgRMultiple'] as num?)?.toDouble() ?? 0,
+        raw: w,
+        sectionTitle: 'FLOW CONFIRMATION · CONFIRMED',
+        sectionExplain: _flowExplain,
       ),
       _RowSpec(
         label: 'NOT CONFIRMED',
         right:
             '${_pct(wo['winRate'])} • ${(wo['totalTrades'] as num?)?.toInt() ?? 0} trades',
         accentR: (wo['avgRMultiple'] as num?)?.toDouble() ?? 0,
+        raw: wo,
+        sectionTitle: 'FLOW CONFIRMATION · NOT CONFIRMED',
+        sectionExplain: _flowExplain,
       ),
       _RowSpec(
         label: 'LIFT',
         right: '${_pct(f['lift'])} edge',
         accentR: (f['lift'] as num?)?.toDouble() ?? 0,
+        raw: f,
+        sectionTitle: 'FLOW CONFIRMATION · LIFT',
+        sectionExplain: _flowExplain,
       ),
     ];
   }
@@ -290,6 +333,9 @@ class _Body extends StatelessWidget {
         right:
             '${_pct(m['winRate'])} • ${(m['totalTrades'] as num?)?.toInt() ?? 0}',
         accentR: (m['avgRMultiple'] as num?)?.toDouble() ?? 0,
+        raw: m,
+        sectionTitle: top ? 'TOP DETECTORS' : 'WORST DETECTORS',
+        sectionExplain: _detectorExplain,
       );
     }).toList();
   }
@@ -412,48 +458,66 @@ class _Section extends StatelessWidget {
                   : r.accentR < 0
                       ? const Color(0xFFE07A6B)
                       : Colors.white70;
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        r.label,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+              return InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: () => showModalBottomSheet<void>(
+                  context: context,
+                  backgroundColor: AppColors.obsidian,
+                  isScrollControlled: true,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(22)),
+                  ),
+                  builder: (BuildContext c) =>
+                      _LearningRowSheet(row: r, accent: accent),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          r.label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                    Text(
-                      r.right,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: accent.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: Text(
-                        '${r.accentR >= 0 ? "+" : ""}${r.accentR.toStringAsFixed(2)}R',
+                      Text(
+                        r.right,
                         style: TextStyle(
-                          color: accent,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                          color: Colors.white.withValues(alpha: 0.75),
+                          fontSize: 12,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: accent.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Text(
+                          '${r.accentR >= 0 ? "+" : ""}${r.accentR.toStringAsFixed(2)}R',
+                          style: TextStyle(
+                            color: accent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(Icons.chevron_right,
+                          color: Colors.white.withValues(alpha: 0.4),
+                          size: 16),
+                    ],
+                  ),
                 ),
               );
             }),
@@ -463,13 +527,266 @@ class _Section extends StatelessWidget {
   }
 }
 
+/// Drilldown sheet for a single learning-insights row. Shows the section
+/// title + section-level interpretation, then every field on the row
+/// map (winRate, totalTrades, avgRMultiple, plus anything else the
+/// backend returns like avgHold, regime, session). Includes a copy-raw-
+/// JSON action for power debugging.
+class _LearningRowSheet extends StatelessWidget {
+  const _LearningRowSheet({required this.row, required this.accent});
+  final _RowSpec row;
+  final Color accent;
+
+  String _label(String k) {
+    switch (k) {
+      case 'band':
+        return 'Score band';
+      case 'regime':
+        return 'Market regime';
+      case 'session':
+        return 'Session';
+      case 'totalTrades':
+        return 'Total trades';
+      case 'wins':
+        return 'Wins';
+      case 'losses':
+        return 'Losses';
+      case 'winRate':
+        return 'Win rate (%)';
+      case 'avgRMultiple':
+        return 'Avg R-multiple';
+      case 'avgHoldHours':
+        return 'Avg hold (hours)';
+      case 'bestR':
+        return 'Best R-multiple';
+      case 'worstR':
+        return 'Worst R-multiple';
+      case 'key':
+        return 'Detector key';
+      case 'lift':
+        return 'Lift';
+      default:
+        return k;
+    }
+  }
+
+  String _format(dynamic v) {
+    if (v == null) return '—';
+    if (v is num) return v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
+    return v.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final keys = row.raw.keys.toList()..sort();
+    return DraggableScrollableSheet(
+      initialChildSize: 0.78,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (BuildContext c, ScrollController controller) {
+        return ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text(
+              row.sectionTitle,
+              style: const TextStyle(
+                color: AppColors.gold,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              row.label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 22,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: accent.withValues(alpha: 0.6)),
+              ),
+              child: Text(
+                '${row.accentR >= 0 ? "+" : ""}${row.accentR.toStringAsFixed(2)}R avg · ${row.right}',
+                style: TextStyle(
+                  color: accent,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF14110D),
+                borderRadius: BorderRadius.circular(10),
+                border:
+                    Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              child: Text(
+                row.sectionExplain,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 12.5,
+                  height: 1.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'FULL REPORT',
+              style: TextStyle(
+                color: AppColors.gold,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (row.raw.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14110D),
+                  borderRadius: BorderRadius.circular(10),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                child: const Text(
+                  'No raw fields attached to this row.',
+                  style: TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+              )
+            else
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14110D),
+                  borderRadius: BorderRadius.circular(10),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                child: Column(
+                  children: <Widget>[
+                    for (int i = 0; i < keys.length; i++) ...<Widget>[
+                      if (i > 0)
+                        Divider(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            height: 1),
+                      Padding(
+                        padding:
+                            const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            // Fixed-width label so a long value can't
+                            // squeeze the label to a single character.
+                            SizedBox(
+                              width: 130,
+                              child: Text(
+                                _label(keys[i]),
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.55),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Expanded + softWrap + maxLines ellipsis so
+                            // long nested-map / list toString() values
+                            // (which the API can return for some rows)
+                            // don't overflow the Row by thousands of px.
+                            Expanded(
+                              child: Text(
+                                _format(row.raw[keys[i]]),
+                                textAlign: TextAlign.right,
+                                maxLines: 6,
+                                overflow: TextOverflow.ellipsis,
+                                softWrap: true,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            const SizedBox(height: 14),
+            Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(
+                    text:
+                        const JsonEncoder.withIndent('  ').convert(row.raw),
+                  ));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Raw JSON copied')),
+                  );
+                },
+                icon: const Icon(Icons.copy, size: 14, color: AppColors.gold),
+                label: const Text(
+                  'Copy raw JSON',
+                  style: TextStyle(
+                    color: AppColors.gold,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _RowSpec {
   const _RowSpec({
     required this.label,
     required this.right,
     required this.accentR,
+    this.raw = const <String, dynamic>{},
+    this.sectionTitle = '',
+    this.sectionExplain = '',
   });
   final String label;
   final String right;
   final double accentR;
+  // Backing map for the drilldown sheet — carries every field the
+  // backend sent for this row so the sheet can dump them all. Empty
+  // map = drilldown will still open but only show synthetic stats.
+  final Map<String, dynamic> raw;
+  // Section context for the sheet header. Set by the row-builders below
+  // so the sheet can show e.g. "REGIME · BULL" instead of just "BULL".
+  final String sectionTitle;
+  final String sectionExplain;
 }

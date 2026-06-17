@@ -13,6 +13,9 @@ import '../../../../shared/animations/fade_slide_in.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../shared/widgets/section_header.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
+import '../../../../core/services/engagement_service.dart';
+import '../../../performance/presentation/providers/performance_providers.dart';
+import '../../data/snooze_service.dart';
 import '../providers/profile_providers.dart';
 import '../widgets/avatar_uploader.dart';
 
@@ -44,6 +47,19 @@ class ProfileScreen extends ConsumerWidget {
 
               // ---- Identity card ----
               FadeSlideIn(child: _IdentityCard(user: u)),
+              const SizedBox(height: 14),
+
+              // ---- Notifications status — surfaces snooze + master so
+              // users don't have to dig into Settings just to check why
+              // they're not getting alerts. Tap = jump to Settings.
+              const _NotifStatusRow(),
+              const SizedBox(height: 14),
+
+              // ---- At-a-glance dashboard — watchlist size, lifetime
+              // trades, 7-day P&L. Each tile is tappable to the source
+              // screen so the row doubles as nav. Stats stay live via
+              // their underlying providers.
+              const _QuickStatsRow(),
               const SizedBox(height: 14),
 
               // ---- Account actions ----
@@ -233,6 +249,7 @@ class ProfileScreen extends ConsumerWidget {
     final reauth = await _reauthPrompt(context, ref,
         message: 'Confirm your password to change email.');
     if (reauth != true) return;
+    if (!context.mounted) return;
     final ctl = TextEditingController(text: current ?? '');
     final v = await showDialog<String>(
       context: context,
@@ -264,6 +281,7 @@ class ProfileScreen extends ConsumerWidget {
     final reauth = await _reauthPrompt(context, ref,
         message: 'Confirm your current password.');
     if (reauth != true) return;
+    if (!context.mounted) return;
     final newPw = TextEditingController();
     final v = await showDialog<String>(
       context: context,
@@ -328,6 +346,7 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
     if (confirmed != true) return;
+    if (!context.mounted) return;
 
     final reauth = await _reauthPrompt(context, ref,
         message: 'Confirm your password to delete your account.');
@@ -536,6 +555,230 @@ class _ActionRow extends StatelessWidget {
             if (onTap != null)
               const Icon(Icons.chevron_right, color: AppColors.textTertiary, size: 18),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Three-tile dashboard row showing watchlist size, lifetime closed
+/// trades, and 7-day P&L. Each tile is tappable. Stats stay live via
+/// the underlying providers — no manual refresh required.
+class _QuickStatsRow extends ConsumerWidget {
+  const _QuickStatsRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final watchlist = ref.watch(watchlistProvider);
+    final tradesAsync = ref.watch(userClosedTradesProvider);
+    final closedCount = tradesAsync.maybeWhen(
+      data: (list) => list.length,
+      orElse: () => 0,
+    );
+    // 7-day P&L percent — sum of pnlPct over trades whose closedAt is
+    // within the last 7 days. Cheap O(N) pass; trade lists are small.
+    final cutoff = DateTime.now().subtract(const Duration(days: 7));
+    final weekPnl = tradesAsync.maybeWhen(
+      data: (list) {
+        double sum = 0;
+        for (final t in list) {
+          if (t.closedAt.isAfter(cutoff)) sum += t.pnlPct;
+        }
+        return sum;
+      },
+      orElse: () => 0.0,
+    );
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: _StatTile(
+            icon: Icons.star,
+            label: 'Watchlist',
+            value: '${watchlist.length}',
+            tone: AppColors.gold,
+            onTap: () => context.go(RoutePaths.scanner),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatTile(
+            icon: Icons.show_chart,
+            label: 'Lifetime trades',
+            value: '$closedCount',
+            tone: AppColors.gold,
+            onTap: () => context.go(RoutePaths.performance),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatTile(
+            icon: weekPnl >= 0 ? Icons.trending_up : Icons.trending_down,
+            label: '7-day P&L',
+            value:
+                '${weekPnl >= 0 ? "+" : ""}${weekPnl.toStringAsFixed(1)}%',
+            tone: weekPnl >= 0 ? AppColors.bullish : AppColors.bearish,
+            onTap: () => context.go(RoutePaths.performance),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.tone,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color tone;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          decoration: BoxDecoration(
+            color: AppColors.graphite,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.steel),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Icon(icon, color: tone, size: 16),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tone,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textTertiary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Surfaces master toggle + snooze state on Profile so users don't have
+/// to open Settings to check why pushes are quiet. Two colored chips +
+/// a tap target that routes to Settings → Notifications.
+class _NotifStatusRow extends ConsumerWidget {
+  const _NotifStatusRow();
+
+  String _untilLabel(DateTime t) {
+    final local = t.toLocal();
+    final h = local.hour.toString().padLeft(2, '0');
+    final m = local.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final masterOn =
+        ref.watch(masterNotifProvider).maybeWhen(data: (v) => v, orElse: () => true);
+    final snooze =
+        ref.watch(activeSnoozeProvider).maybeWhen(data: (v) => v, orElse: () => null);
+
+    // Decide the headline. Snooze is the loudest signal so it wins.
+    final bool muted = !masterOn || snooze != null;
+    final Color tone = muted ? AppColors.gold : AppColors.bullish;
+    String headline;
+    String detail;
+    if (snooze != null) {
+      headline = 'Snoozed until ${_untilLabel(snooze)}';
+      detail = 'All pushes suppressed until snooze expires.';
+    } else if (!masterOn) {
+      headline = 'Notifications OFF';
+      detail = 'Master toggle is off — flip it on to start receiving pushes.';
+    } else {
+      headline = 'Notifications ON';
+      detail = 'Tap to manage channels, snooze, quiet hours, or run a test push.';
+    }
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => context.go(RoutePaths.settings),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: AppColors.graphite,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: tone.withValues(alpha: 0.45)),
+          ),
+          child: Row(
+            children: <Widget>[
+              Icon(
+                muted ? Icons.notifications_paused : Icons.notifications_active,
+                color: tone,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      headline,
+                      style: TextStyle(
+                        color: tone,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      detail,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right,
+                  color: AppColors.textTertiary, size: 18),
+            ],
+          ),
         ),
       ),
     );

@@ -49,10 +49,12 @@ class _EnableNotificationsScreenState
       }
     } catch (_) {
       AnalyticsService.notificationsDenied();
-    } finally {
-      if (!mounted) return;
-      _continueToApp();
     }
+    // Always continue, but only if still mounted. Moved out of `finally`
+    // because `return` in a finally clause swallows any pending exception
+    // (lint: control_flow_in_finally).
+    if (!mounted) return;
+    _continueToApp();
   }
 
   void _skip() {
