@@ -714,6 +714,67 @@ const List<LearnSection> learnSections = <LearnSection>[
         body:
             'Chat is meant to be useful, not noisy. The mute-per-room toggle is the most underrated tool in there — if you are deep in a trade and do not want ADMIN BUYS screenshots buzzing for the next 30 minutes, mute the room. The unread badge still shows, so you can catch up at your pace.\n\n@mentions are the opposite — they explicitly cut through. If someone tags you specifically, you get a push titled "@Sender mentioned you" even if the room itself is busy. Admins can broadcast @everyone, which fires a separate push to every active phone (still subject to each user\'s mute settings).\n\nThe search sheet is room-scoped on purpose. It only filters messages currently streamed into the room — meaning the last ~100 — but those load as soon as you open the room, so search is instant. For older history, scroll the room.\n\nFinally, a note on the badge counts. They are capped at 99 client-side so the chip stays readable. If you see 99+ for a long time, that just means real activity — not a stuck counter. Tap "Mark all read" or open each room to clear.',
       ),
+      LearnLesson(
+        id: 'scalp-what-is-it',
+        title: 'Scalp Mode: What It Is (and What It Isn\'t)',
+        summary:
+            '0DTE on the screen, 10 minutes max. Opt-in only because the failure mode is fast.',
+        bullets: <String>[
+          'Scalp targets same-day-expiry options on SPY, QQQ, IWM, DIA + 8 mega-caps.',
+          'Every alert has a 10-minute live window. After that the card is stamped expired.',
+          'Stops are 0.3% on the underlying — about 15% on a 0.50-delta premium.',
+          'Targets are 0.5R / 1R / 1.5R — quick scoops, not multi-R rides.',
+          'Opt-in via Settings → Notifications → Scalp alerts. Default OFF for a reason.',
+          'If you\'re not actively watching the screen, skip the channel.',
+        ],
+        body:
+            'Scalp is the fastest-cycle product in the app. Six detectors look at 1-min bars on a 12-ticker universe, fire when a high-conviction setup prints, and tag the alert with a TTL of 10 minutes. After that, the alert auto-invalidates and rolls off your screen.\n\nWhy 10 minutes? Because past that point, theta on a 0DTE contract has eaten too much of the premium for the math to work. The whole point of scalp is to catch the move before theta wins.\n\nThe scoreFloor for scalp publish is 60 — lower than day or swing — because scalp scores cap structurally lower (detector ceiling is 74). The auto-promote bar is score >= 80, which lands the high-conviction scalps in Hot Trades.',
+      ),
+      LearnLesson(
+        id: 'scalp-theta-math',
+        title: 'Reading the Theta Chip',
+        summary:
+            'The most important number on a scalp card is "how fast is this contract bleeding right now."',
+        bullets: <String>[
+          'Theta-per-minute is shown on every scalp card: "theta \$0.06/m".',
+          'Multiply by minutes you plan to hold. 5 minutes at theta \$0.06 = \$0.30 lost.',
+          'Divide by contract mid to get %/min. 0.06 / 1.20 = 5%/min on a \$1.20 contract.',
+          'When theta x hold > expected move premium, the trade can\'t work mathematically.',
+          'Late-day 0DTEs decay faster: 1pm-2pm theta is normal, 3pm theta is brutal.',
+        ],
+        body:
+            'Theta is the price you pay for time. On a normal-DTE option you can mostly ignore it. On a 0DTE you cannot. The theta chip we surface on every scalp card is the daily theta value from Polygon divided by 390 (one trading day in minutes), which gives you per-minute decay.\n\nA practical example: NVDA 1750C, mid \$1.40, theta -0.40. Per-minute theta is -0.40 / 390 ~ -\$0.001 per minute on average across the session. The reality is that on a 0DTE contract approaching expiry, theta in the LAST hour is much higher than the daily-averaged number — sometimes 5-10x. Use the chip as a directional signal, not a precise prediction.\n\nThe single best rule: if the chip shows theta -\$X/m and your expected hold is N minutes, you need at least X x N + entry premium to break even on the underlying move. If you don\'t see a clear path to that move in the first bar after the trigger, pass the trade.',
+      ),
+      LearnLesson(
+        id: 'scalp-stop-discipline',
+        title: 'Stop Discipline on a 10-Minute Trade',
+        summary:
+            'The whole strategy lives or dies on getting out fast when the setup invalidates.',
+        bullets: <String>[
+          'Set the stop the moment you enter — at the level the scanner published.',
+          'If the underlying breaks the stop level for even one bar, you\'re out.',
+          'No "let it come back." A scalp that comes back was a different trade.',
+          'Premium stop: -35% of contract entry. Hit it, sell it, walk away.',
+          'Never average down. The whole edge requires a tiny average loss.',
+        ],
+        body:
+            'A scalper with no stop is a donor. The math: you need 4 out of 10 wins at +1R to break even at -1R stops. Loosen the stop to -1.5R and now you need 5 out of 10 to break even. Loosen to -2R and you need 6 out of 10. Most scalpers can\'t pick 5 out of 10 on a 1-min chart, let alone 6 — so the tight stop isn\'t a preference, it\'s the only way the strategy works.\n\nOn the underlying side, the scanner places a stop at 0.3% off entry or 0.5xATR (whichever is tighter). On the premium side, our shadow trade tracker closes at -35% of contract entry, which is the empirical equivalent on a 0.50-delta 0DTE.\n\nIf you find yourself thinking "I\'ll give it another minute" — stop. That sentence is the leak. The plan was 10 minutes. The stop was X. Honor both.',
+      ),
+      LearnLesson(
+        id: 'scalp-when-to-skip',
+        title: 'When Not to Scalp',
+        summary:
+            'Most days are not scalp days. Skipping is a position too.',
+        bullets: <String>[
+          'Lunch chop (11:30am-1:30pm ET): cards still fire but win rate dips.',
+          'FOMC / CPI / earnings open: news-driven slop kills mean-reversion setups.',
+          'You haven\'t had coffee. You\'re distracted. The screen will eat you.',
+          'You just took two losses. Step away — don\'t revenge-trade the third.',
+          'Spread > 5% of mid on the suggested contract. Slippage will eat the edge.',
+        ],
+        body:
+            'Scalping is the highest-attention-cost product in the app. Day trades give you 30 minutes to act. Swing trades give you a day. Scalp gives you 10 minutes. If your attention isn\'t already on the screen, the alert will fire, age, and expire before you can act on it.\n\nThe lunch slowdown is real. Volume drops, ranges compress, mean reversion setups still trigger but the follow-through fades. We don\'t blacklist scalp during lunch — too many good scalps happen on news — but the win rate per setup is structurally lower in that window. If you\'re going to scalp lunch, demand a clean signal: high RVOL, clear structure break, no chop in the prior 2 bars.\n\nThe other killers are macro events. Walk away during FOMC announcement minutes. The post-announcement candles are not setups, they\'re lottery tickets.',
+      ),
     ],
   ),
 ];
