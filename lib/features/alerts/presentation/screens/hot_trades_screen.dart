@@ -39,12 +39,19 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
   /// so "Day + Watchlist" shows only day-mode alerts in your watchlist.
   bool _watchlistOnly = false;
 
-  // Index 1 is the derived 0DTE filter on top of the day slice. Index 0
-  // shows everything; 2/3/4 are direct mode filters.
+  // Tab layout:
+  //   0: All
+  //   1: 0DTE       (derived filter on alerts with isZeroDte)
+  //   2: Scalp      (mode == ScannerMode.scalp — opt-in)
+  //   3: Day
+  //   4: Swing
+  //   5: LEAPS
   static const int _zeroDteTabIndex = 1;
+  static const int _scalpTabIndex = 2;
   static const List<String> _tabLabels = <String>[
     'All',
     '0DTE',
+    'Scalp',
     'Day',
     'Swing',
     'LEAPS',
@@ -85,17 +92,22 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
             .where((TradeAlert a) => a.contract?.isZeroDte == true)
             .toList(growable: false);
         break;
-      case 2:
+      case _scalpTabIndex:
         filtered = all
-            .where((TradeAlert a) => a.mode == ScannerMode.day)
+            .where((TradeAlert a) => a.mode == ScannerMode.scalp)
             .toList(growable: false);
         break;
       case 3:
         filtered = all
-            .where((TradeAlert a) => a.mode == ScannerMode.swing)
+            .where((TradeAlert a) => a.mode == ScannerMode.day)
             .toList(growable: false);
         break;
       case 4:
+        filtered = all
+            .where((TradeAlert a) => a.mode == ScannerMode.swing)
+            .toList(growable: false);
+        break;
+      case 5:
         filtered = all
             .where((TradeAlert a) => a.mode == ScannerMode.leaps)
             .toList(growable: false);
@@ -116,11 +128,13 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
     switch (_tabs.index) {
       case _zeroDteTabIndex:
         return '0DTE TAB QUIET';
-      case 2:
-        return 'NO DAY PROMOTES';
+      case _scalpTabIndex:
+        return 'SCALP TAB QUIET';
       case 3:
-        return 'NO SWING PROMOTES';
+        return 'NO DAY PROMOTES';
       case 4:
+        return 'NO SWING PROMOTES';
+      case 5:
         return 'NO LEAPS PROMOTES';
       default:
         return 'NO HOT TRADES RIGHT NOW';
@@ -131,11 +145,13 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
     switch (_tabs.index) {
       case _zeroDteTabIndex:
         return 'No 0DTE plays right now';
-      case 2:
-        return 'No day-mode promotes';
+      case _scalpTabIndex:
+        return 'No scalp setups right now';
       case 3:
-        return 'No swing-mode promotes';
+        return 'No day-mode promotes';
       case 4:
+        return 'No swing-mode promotes';
+      case 5:
         return 'No LEAPS-mode promotes';
       default:
         return 'No promoted setups';
@@ -146,11 +162,13 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
     switch (_tabs.index) {
       case _zeroDteTabIndex:
         return 'Promoted same-day-expiry options plays appear here. New 0DTE setups land as soon as a SPY/QQQ/IWM/DIA alert hits A grade or higher during market hours.';
-      case 2:
-        return 'Promoted intraday setups land here once the scanner flags an A or A+ on a day-mode candidate.';
+      case _scalpTabIndex:
+        return '0DTE 5-min scalps on SPY/QQQ/IWM/DIA + mega-caps. Cards have a 10-minute TTL and disappear when they expire. Enable scalp pushes in Settings → Notifications if you want a buzz when one fires.';
       case 3:
-        return 'Promoted swing setups land here once the scanner flags an A+ on the multi-day universe.';
+        return 'Promoted intraday setups land here once the scanner flags an A or A+ on a day-mode candidate.';
       case 4:
+        return 'Promoted swing setups land here once the scanner flags an A+ on the multi-day universe.';
+      case 5:
         return 'Promoted LEAPS land here on the rare strong long-dated thesis. Updates twice per session.';
       default:
         return "When the scanner promotes an A+ setup or the team hand-picks a play, it'll land here first. Pull down to refresh — new alerts appear automatically during US market hours.";
@@ -161,9 +179,11 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
     switch (_tabs.index) {
       case _zeroDteTabIndex:
         return Icons.flash_on;
-      case 2:
+      case _scalpTabIndex:
+        return Icons.flash_on_outlined;
+      case 3:
         return Icons.bolt_outlined;
-      case 4:
+      case 5:
         return Icons.calendar_month_outlined;
       default:
         return Icons.local_fire_department_outlined;

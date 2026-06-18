@@ -40,12 +40,16 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   // this index to apply the isZeroDte client-side filter.
   static const int _zeroDteTabIndex = 1;
 
-  /// Tab modes per index. Index 1 is the 0DTE derived filter — handled
-  /// separately in _watchForCurrentTab().
+  /// Tab modes per index. Index 1 is the 0DTE derived filter, index 2 is
+  /// the explicit scalp mode (0DTE 5-min scanner, opt-in). _watchForCurrentTab
+  /// special-cases the 0DTE index because it's a derived filter on the day
+  /// stream; scalp uses its own backend stream because it has different
+  /// detectors/cadence.
   static const List<ScannerMode?> _tabModes = <ScannerMode?>[
-    null,             // All
-    ScannerMode.day,  // 0DTE (filtered)
-    ScannerMode.day,  // Day
+    null,               // All
+    ScannerMode.day,    // 0DTE (filtered from day)
+    ScannerMode.scalp,  // Scalp (real scalp-mode stream)
+    ScannerMode.day,    // Day
     ScannerMode.swing,
     ScannerMode.leaps,
   ];
@@ -53,6 +57,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   static const List<String> _tabLabels = <String>[
     'All',
     '0DTE',
+    'Scalp',
     'Day',
     'Swing',
     'LEAPS',
@@ -358,4 +363,17 @@ class _AdminToggle extends StatelessWidget {
                 ? AppColors.gold.withValues(alpha: 0.4)
                 : Colors.transparent,
           ),
-       
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? AppColors.gold : AppColors.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6,
+          ),
+        ),
+      ),
+    );
+  }
+}

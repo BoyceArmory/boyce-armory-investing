@@ -11,6 +11,7 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/alert_actions_sheet.dart';
 import '../../../../shared/widgets/card_background.dart';
 import '../../../../shared/widgets/position_sizing_chip.dart';
+import '../../../../shared/widgets/scalp_meta_strip.dart';
 import '../../../../shared/widgets/ticker_logo.dart';
 import '../../../scanner/data/setup_education.dart';
 import '../../../scanner/presentation/widgets/alert_action_bar.dart';
@@ -63,6 +64,18 @@ class _HotTradeCardState extends State<HotTradeCard> {
             alignment: Alignment.centerRight,
             child: _HotEyebrow(mode: a.mode, source: a.source),
           ),
+          if (a.mode == ScannerMode.scalp) ...<Widget>[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: ScalpMetaStrip(
+                createdAt: a.createdAt,
+                contract: a.contract,
+                symbol: a.symbol,
+                entry: a.entry,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
@@ -209,23 +222,30 @@ class _ModePill extends StatelessWidget {
         ScannerMode.scalp => 'SCALP',
       };
 
+  /// Scalp gets burnt-orange, everything else gold. Scalp is the only
+  /// time-critical mode (10-min TTL), so the colour break tells the eye
+  /// "react now" before the user has read the label.
+  Color get _pillColor =>
+      mode == ScannerMode.scalp ? const Color(0xFFFF7A1A) : AppColors.gold;
+
   @override
   Widget build(BuildContext context) {
+    final color = _pillColor;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.gold.withValues(alpha: 0.18),
+        color: color.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.gold.withValues(alpha: 0.55)),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
       ),
       child: Text(
         _label,
-        style: const TextStyle(
-          color: AppColors.gold,
+        style: TextStyle(
+          color: color,
           fontSize: 9.5,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.4,
-          shadows: <Shadow>[
+          shadows: const <Shadow>[
             Shadow(
               color: Color(0xAA000000),
               offset: Offset(0, 1),
@@ -662,4 +682,9 @@ class _ShadowedText extends StatelessWidget {
             color: Color(0xAA000000),
             offset: Offset(0, 1),
             blurRadius: 4,
-        
+          ),
+        ],
+      ),
+    );
+  }
+}

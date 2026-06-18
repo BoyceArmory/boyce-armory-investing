@@ -11,6 +11,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/card_background.dart';
 import '../../../../shared/widgets/position_sizing_chip.dart';
+import '../../../../shared/widgets/scalp_meta_strip.dart';
 import '../../../../shared/widgets/ticker_logo.dart';
 import '../../data/setup_education.dart';
 import 'alert_action_bar.dart';
@@ -77,6 +78,24 @@ class _ScannerAlertCardState extends State<ScannerAlertCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
+          // Scalp meta strip (SCALP ribbon + theta/min + countdown). Sits
+          // above the standard right-info column so the time-critical
+          // numbers read first on a 10-min-TTL alert. Hidden for all
+          // non-scalp modes (the cost of always-on Timer + extra widgets
+          // isn't worth it for day/swing/leaps).
+          if (a.mode == ScannerMode.scalp)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: ScalpMetaStrip(
+                  createdAt: a.createdAt,
+                  contract: a.suggestedContract,
+                  symbol: a.symbol,
+                  entry: a.entry,
+                ),
+              ),
+            ),
           // Right-aligned column over the full-bleed art.
           Align(
             alignment: Alignment.centerRight,
