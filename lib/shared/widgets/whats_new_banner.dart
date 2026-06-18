@@ -8,17 +8,18 @@ import '../../core/theme/app_colors.dart';
 import '../../features/profile/data/tips_service.dart';
 
 /// Compact gold banner shown on home until the user taps the X or
-/// follows the lesson link. Highlights the v2.4.0 features (chat
-/// badges + mute + search + snooze) so upgrade users discover them
-/// without poking around.
+/// follows the lesson link. Highlights the v2.5.0 features (0DTE
+/// scalp mode opt-in + Hot Trades scalp tab + theta-per-minute on
+/// scalp cards) so upgrade users discover them without poking around.
 ///
-/// The dismissal flag (`whatsNewV240`) lives in Firestore so closing
+/// The dismissal flag (`whatsNewV250`) lives in Firestore so closing
 /// the banner on one device hides it on every other device the user
-/// is signed in on.
+/// is signed in on. Bumping the tip ID per release naturally re-shows
+/// the banner to everyone who dismissed the prior version.
 class WhatsNewBanner extends ConsumerWidget {
   const WhatsNewBanner({super.key});
 
-  static const String _tipId = 'whatsNewV240';
+  static const String _tipId = 'whatsNewV250';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,10 +27,11 @@ class WhatsNewBanner extends ConsumerWidget {
     if (dismissed) return const SizedBox.shrink();
     return _Banner(
       onTap: () {
-        // Send the user to the new chat lesson; the snooze lesson is the
-        // very next item in the same section so they'll see both.
+        // Send the user to the new scalp lesson. The next 3 lessons in
+        // the same section cover theta-math, stop discipline, and
+        // when-to-skip so the tap kicks off the full scalp onboarding.
         context.go(
-          RoutePaths.lessonsLessonFor('execution', 'using-the-chat'),
+          RoutePaths.lessonsLessonFor('execution', 'scalp-what-is-it'),
         );
       },
       onDismiss: () async {
@@ -82,7 +84,7 @@ class _Banner extends StatelessWidget {
                   ),
                   children: <InlineSpan>[
                     TextSpan(
-                      text: "What's new in v2.4 — ",
+                      text: "What's new in v2.5 — ",
                       style: TextStyle(
                         color: AppColors.gold,
                         fontWeight: FontWeight.w800,
@@ -90,7 +92,7 @@ class _Banner extends StatelessWidget {
                     ),
                     TextSpan(
                       text:
-                          'chat @mentions + unread badges + mute per room, plus snooze-all and self-test push. Tap to learn.',
+                          '0DTE Scalp mode (opt-in) with theta-per-minute, 10-min TTL, and a dedicated Scanner + Hot Trades tab. Tap to learn.',
                     ),
                   ],
                 ),
@@ -99,15 +101,4 @@ class _Banner extends StatelessWidget {
             IconButton(
               tooltip: 'Dismiss',
               icon: const Icon(Icons.close,
-                  color: AppColors.textTertiary, size: 16),
-              onPressed: onDismiss,
-              padding: EdgeInsets.zero,
-              constraints:
-                  const BoxConstraints(minWidth: 30, minHeight: 30),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+                  color: AppColors.textTertiary, s
