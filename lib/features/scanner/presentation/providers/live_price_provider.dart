@@ -8,10 +8,11 @@ import '../../../../core/providers/api_providers.dart';
 /// 10-min-TTL card shows a live price instead of the stale snapshot taken
 /// at fire time.
 ///
-/// Polling cadence: 30 seconds. Tighter than that wastes Polygon budget
-/// (most scalps resolve before the price chart looks meaningfully
-/// different). autoDispose so the timer is torn down the second the card
-/// scrolls offscreen.
+/// Polling cadence: 15 seconds. June 2026 bump (from 30s) — Polygon
+/// Advanced has no rate limit and scalps live and die on price moves
+/// inside any given minute. 15s is the right granularity for a 10-min
+/// TTL position. autoDispose so the timer is torn down the second the
+/// card scrolls offscreen.
 ///
 /// Endpoint: GET /api/market/quote/{symbol} → { price, ... }
 ///
@@ -33,16 +34,11 @@ final AutoDisposeStreamProviderFamily<double?, String> livePriceProvider =
     }
   }
 
-  // Fire immediately, then every 30 seconds. The first emission gives the
+  // Fire immediately, then every 15 seconds. The first emission gives the
   // card a fresh price within ~half a second of the user opening the
   // screen; the timer keeps it fresh while they look at it.
   tick();
-  final timer = Timer.periodic(const Duration(seconds: 30), (_) => tick());
+  final timer = Timer.periodic(const Duration(seconds: 15), (_) => tick());
 
   ref.onDispose(() {
-    timer.cancel();
-    controller.close();
-  });
-
-  return controller.stream;
-});
+    timer
