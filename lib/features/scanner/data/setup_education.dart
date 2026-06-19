@@ -189,15 +189,41 @@ class SetupEducation {
         'This setup was hand-picked by the desk because the combination of '
             'price action, volume, and market context lines up with how we '
             'trade.',
+
+    // -------------------- Scalp (0DTE 5-min) --------------------
+    'vwap_reclaim_scalp':
+        'VWAP reclaim on a 1-minute bar with a 2.5x+ volume burst. VWAP is '
+            'where most of the day\'s shares have transacted — reclaiming it '
+            'from below on heavy volume tells you the buyer side just '
+            'overwhelmed the seller side in real time. Tight stop just '
+            'below VWAP, fast 0.5R / 1R / 1.5R targets because the alert '
+            'lives only 10 minutes before theta wins.',
+    'vwap_rejection_scalp':
+        'Inverse of the reclaim — price tagged VWAP from above, got '
+            'rejected on volume, and is rolling back over. Sellers are '
+            'defending VWAP as resistance. Same compressed risk/reward as '
+            'the reclaim setup; same 10-minute alert window.',
+    'failed_breakout_fade':
+        'Price poked above a recent high on a 1-minute bar but the trigger '
+            'bar closed back UNDER the high. That failure is structural '
+            'exhaustion — the buyers who tried to push above the level ran '
+            'out of ammo, and they\'re the ones who become forced sellers '
+            'when the move fades. Fade the failure with a tight stop above '
+            'the failed high.',
+    'failed_breakdown_fade':
+        'Mirror of the failed breakout fade. Price wicked below a recent '
+            'low and the trigger bar closed back above. The shorts who '
+            'pressed the breakdown are now trapped and the squeeze back is '
+            'the trade. Tight stop below the wick.',
   };
 
   /// Returns an educational paragraph for [kind]. Falls back to a generic
   /// explanation if the kind is unknown.
   static String forKind(String kind) {
-    final String key = kind.trim().toLowerCase();
-    return _byKind[key] ??
-        'This setup combines price action, volume, and trend structure into '
-            'a high-probability entry. Read the trigger reason above for what '
-            'specifically fired the alert.';
+    return _byKind[kind] ??
+        'This is a recognised pattern in our scoring system. The combination '
+            'of price, volume, and momentum lines up with the rules we use '
+            'to grade quality. Use the entry/stop/target plan as a guide and '
+            'manage risk based on your account size.';
   }
 }
