@@ -88,8 +88,16 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
         filtered = all;
         break;
       case _zeroDteTabIndex:
+        // 0DTE = day-mode alerts whose suggested contract expires today.
+        // The mode guard is critical — without it, a swing-mode alert that
+        // happens to use a contract dated for today (rare but possible
+        // when an admin manually picks a near-dated contract on a swing
+        // setup) leaks into the 0DTE tab and confuses users. Scalp has its
+        // own tab so we deliberately do NOT include scalp here either.
         filtered = all
-            .where((TradeAlert a) => a.contract?.isZeroDte == true)
+            .where((TradeAlert a) =>
+                a.mode == ScannerMode.day &&
+                a.contract?.isZeroDte == true)
             .toList(growable: false);
         break;
       case _scalpTabIndex:
@@ -525,21 +533,4 @@ class _ModeTabs extends StatelessWidget {
           border: Border.all(color: AppColors.gold.withValues(alpha: 0.55)),
         ),
         indicatorSize: TabBarIndicatorSize.tab,
-        dividerColor: Colors.transparent,
-        labelColor: AppColors.gold,
-        unselectedLabelColor: AppColors.textSecondary,
-        labelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.6,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.6,
-        ),
-        tabs: <Widget>[for (final String l in labels) Tab(text: l)],
-      ),
-    );
-  }
-}
+        di
