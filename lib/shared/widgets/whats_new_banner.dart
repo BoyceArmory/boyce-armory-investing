@@ -101,4 +101,15 @@ class _Banner extends StatelessWidget {
             IconButton(
               tooltip: 'Dismiss',
               icon: const Icon(Icons.close,
-                  color: AppColors.textTertiary, s
+                  color: AppColors.textTertiary, size: 16),
+              onPressed: onDismiss,
+              padding: EdgeInsets.zero,
+              constraints:
+                  const BoxConstraints(minWidth: 30, minHeight: 30),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

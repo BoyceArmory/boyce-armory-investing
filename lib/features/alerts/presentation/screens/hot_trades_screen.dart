@@ -533,4 +533,22 @@ class _ModeTabs extends StatelessWidget {
           border: Border.all(color: AppColors.gold.withValues(alpha: 0.55)),
         ),
         indicatorSize: TabBarIndicatorSize.tab,
-        di
+        dividerColor: Colors.transparent,
+        labelColor: AppColors.gold,
+        unselectedLabelColor: AppColors.textSecondary,
+        labelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.6,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.6,
+        ),
+        tabs: <Widget>[for (final String l in labels) Tab(text: l)],
+      ),
+    );
+  }
+}
+// end of file
