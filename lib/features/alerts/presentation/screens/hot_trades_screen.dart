@@ -106,8 +106,12 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
             .toList(growable: false);
         break;
       case 3:
+        // Day tab excludes 0DTE-contract alerts; those live in the 0DTE
+        // tab exclusively so users don't see the same SPY card twice.
         filtered = all
-            .where((TradeAlert a) => a.mode == ScannerMode.day)
+            .where((TradeAlert a) =>
+                a.mode == ScannerMode.day &&
+                a.contract?.isZeroDte != true)
             .toList(growable: false);
         break;
       case 4:
@@ -542,13 +546,4 @@ class _ModeTabs extends StatelessWidget {
           letterSpacing: 0.6,
         ),
         unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.6,
-        ),
-        tabs: <Widget>[for (final String l in labels) Tab(text: l)],
-      ),
-    );
-  }
-}
-// end of file
+ 

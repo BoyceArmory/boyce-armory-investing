@@ -99,6 +99,20 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       );
     }
 
+    // Day tab: same as before, but EXCLUDE alerts whose suggested
+    // contract expires today. Those land in the 0DTE tab exclusively so
+    // the user doesn't see the same SPY card on both tabs.
+    if (mode == ScannerMode.day) {
+      final AsyncValue<List<ScannerAlert>> upstream = useAdmin
+          ? ref.watch(adminScannerResultsByModeProvider(ScannerMode.day))
+          : ref.watch(publicScannerAlertsByModeProvider(ScannerMode.day));
+      return upstream.whenData(
+        (List<ScannerAlert> alerts) => alerts
+            .where((ScannerAlert a) => a.suggestedContract?.isZeroDte != true)
+            .toList(growable: false),
+      );
+    }
+
     if (useAdmin) {
       return mode == null
           ? ref.watch(adminScannerResultsProvider)
@@ -354,26 +368,4 @@ class _AdminToggle extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.gold.withValues(alpha: 0.14) : null,
-          borderRadius: BorderRadius.circular(7),
-          border: Border.all(
-            color: selected
-                ? AppColors.gold.withValues(alpha: 0.4)
-                : Colors.transparent,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? AppColors.gold : AppColors.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
-          ),
-        ),
-      ),
-    );
-  }
-}
+        padding: const EdgeInsets.s
