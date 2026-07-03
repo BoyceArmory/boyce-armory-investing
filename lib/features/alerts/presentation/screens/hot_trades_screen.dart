@@ -368,10 +368,16 @@ class _ScannerScheduleHintCard extends StatelessWidget {
     }
     switch (modeIndex) {
       case 2:
-        return 'Day-mode scanner runs every minute from 9:30 AM to 1:30 PM ET. New A / A+ alerts auto-promote here.';
+        // Scalp tab (0DTE 5-min opt-in scanner).
+        return 'Scalp scanner runs every 15s during market hours on SPY/QQQ/IWM/DIA + mega-caps. Cards have a 10-minute TTL. Enable scalp pushes in Settings → Notifications.';
       case 3:
-        return 'Swing-mode scanner runs at 10:00 AM and 3:30 PM ET. Promotes require A+ grade for multi-day setups.';
+        // Day tab.
+        return 'Day-mode scanner runs every minute from 9:30 AM to 1:30 PM ET. New A / A+ alerts auto-promote here.';
       case 4:
+        // Swing tab.
+        return 'Swing-mode scanner runs at 10:00 AM and 3:30 PM ET. Promotes require A+ grade for multi-day setups.';
+      case 5:
+        // LEAPS tab.
         return 'LEAPS scanner runs twice daily (10:30 AM, 2:30 PM ET). Long-dated A+ setups only — quiet by design.';
       default:
         return 'Scanner runs every minute during market hours and twice daily for swing / LEAPS. Promotes appear here automatically — pull down to refresh.';
