@@ -76,12 +76,51 @@ class ScannerRepository {
         }
         return true;
       }).toList();
-      visible.sort((ScannerAlert a, ScannerAlert b) {
+
+      // DEDUP BY (mode, symbol) — defense-in-depth. The backend writes
+      // one doc per ticker per mode per day using perTickerAlertKey, so
+      // this SHOULD be a no-op. But legacy docs from an earlier scheme
+      // that keyed on (mode, symbol, kind) can still live in the
+      // collection — a merge:true write never deletes the older-scheme
+      // doc, so the same ticker can surface twice (once with V/P/%, once
+      // as a stale skeleton with no snapshot fields). We collapse to one
+      // card per ticker per mode, preferring the strongest snapshot:
+      // higher score wins; on ties, richer data (has currentPrice) wins;
+      // on ties, newer createdAt wins. Keeps the fresh doc with V/P/%
+      // populated, drops the stale skeleton clone.
+      final Map<String, ScannerAlert> byKey = <String, ScannerAlert>{};
+      for (final ScannerAlert a in visible) {
+        final String key = '${a.mode?.wire ?? "?"}:${a.symbol.toUpperCase()}';
+        final ScannerAlert? cur = byKey[key];
+        if (cur == null) {
+          byKey[key] = a;
+          continue;
+        }
+        // Prefer higher score.
+        if (a.score > cur.score) {
+          byKey[key] = a;
+          continue;
+        }
+        if (a.score < cur.score) continue;
+        // Tie on score: prefer the one with real snapshot data.
+        final bool aHasSnap = a.currentPrice != null;
+        final bool curHasSnap = cur.currentPrice != null;
+        if (aHasSnap && !curHasSnap) {
+          byKey[key] = a;
+          continue;
+        }
+        if (!aHasSnap && curHasSnap) continue;
+        // Tie on snapshot presence: prefer newer.
+        if (a.createdAt.isAfter(cur.createdAt)) byKey[key] = a;
+      }
+      final List<ScannerAlert> deduped = byKey.values.toList();
+
+      deduped.sort((ScannerAlert a, ScannerAlert b) {
         final int scoreCmp = b.score.compareTo(a.score);
         if (scoreCmp != 0) return scoreCmp;
         return b.createdAt.compareTo(a.createdAt);
       });
-      return visible;
+      return deduped;
     });
   }
 
