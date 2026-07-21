@@ -37,28 +37,24 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
   // Sentinel index for the 0DTE filter — it's a derived view on the day
   // stream, not a real ScannerMode. _watchForCurrentTab() special-cases
-  // this index to apply the isZeroDte client-side filter.
-  static const int _zeroDteTabIndex = 1;
+  // Legacy index — kept as a sentinel so leftover 0DTE-branch code paths
+  // still compile. With the day/scalp tabs removed, no tab index maps to
+  // this value, so the branch is unreachable at runtime.
+  static const int _zeroDteTabIndex = -1;
 
-  /// Tab modes per index. Index 1 is the 0DTE derived filter, index 2 is
-  /// the explicit scalp mode (0DTE 5-min scanner, opt-in). _watchForCurrentTab
-  /// special-cases the 0DTE index because it's a derived filter on the day
-  /// stream; scalp uses its own backend stream because it has different
-  /// detectors/cadence.
+  /// Tab modes per index. Narrowed July 2026 to swing + leaps only —
+  /// day/scalp/0DTE tabs removed to match the swing+leap focus. Backend
+  /// day/scalp scanners are also disabled via env (see
+  /// SCANNER_DAY_ENABLED / SCANNER_SCALP_ENABLED), so those streams
+  /// would be empty anyway; hiding the tabs avoids a confusing UX.
   static const List<ScannerMode?> _tabModes = <ScannerMode?>[
     null,               // All
-    ScannerMode.day,    // 0DTE (filtered from day)
-    ScannerMode.scalp,  // Scalp (real scalp-mode stream)
-    ScannerMode.day,    // Day
     ScannerMode.swing,
     ScannerMode.leaps,
   ];
 
   static const List<String> _tabLabels = <String>[
     'All',
-    '0DTE',
-    'Scalp',
-    'Day',
     'Swing',
     'LEAPS',
   ];

@@ -39,20 +39,20 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
   /// so "Day + Watchlist" shows only day-mode alerts in your watchlist.
   bool _watchlistOnly = false;
 
+  // Tab layout narrowed July 2026 to swing + leaps only. Day / Scalp /
+  // 0DTE tabs removed because those backend scanners are disabled via env
+  // (SCANNER_DAY_ENABLED / SCANNER_SCALP_ENABLED). Sentinels kept below
+  // (-1) so leftover switch branches still compile — they're unreachable
+  // at runtime with the new tab set.
+  //
   // Tab layout:
   //   0: All
-  //   1: 0DTE       (derived filter on alerts with isZeroDte)
-  //   2: Scalp      (mode == ScannerMode.scalp — opt-in)
-  //   3: Day
-  //   4: Swing
-  //   5: LEAPS
-  static const int _zeroDteTabIndex = 1;
-  static const int _scalpTabIndex = 2;
+  //   1: Swing
+  //   2: LEAPS
+  static const int _zeroDteTabIndex = -1;
+  static const int _scalpTabIndex = -1;
   static const List<String> _tabLabels = <String>[
     'All',
-    '0DTE',
-    'Scalp',
-    'Day',
     'Swing',
     'LEAPS',
   ];
@@ -83,43 +83,19 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
   List<TradeAlert> _filter(List<TradeAlert> all, Set<String> watchlist) {
     final int idx = _tabs.index;
     List<TradeAlert> filtered;
+    // Narrowed July 2026 to All / Swing / LEAPS. Day/Scalp/0DTE tabs
+    // removed with the backend scanner disable. Legacy branches remain
+    // dead-coded above via _zeroDteTabIndex/_scalpTabIndex sentinels.
     switch (idx) {
       case 0:
         filtered = all;
         break;
-      case _zeroDteTabIndex:
-        // 0DTE = day-mode alerts whose suggested contract expires today.
-        // The mode guard is critical — without it, a swing-mode alert that
-        // happens to use a contract dated for today (rare but possible
-        // when an admin manually picks a near-dated contract on a swing
-        // setup) leaks into the 0DTE tab and confuses users. Scalp has its
-        // own tab so we deliberately do NOT include scalp here either.
-        filtered = all
-            .where((TradeAlert a) =>
-                a.mode == ScannerMode.day &&
-                a.contract?.isZeroDte == true)
-            .toList(growable: false);
-        break;
-      case _scalpTabIndex:
-        filtered = all
-            .where((TradeAlert a) => a.mode == ScannerMode.scalp)
-            .toList(growable: false);
-        break;
-      case 3:
-        // Day tab excludes 0DTE-contract alerts; those live in the 0DTE
-        // tab exclusively so users don't see the same SPY card twice.
-        filtered = all
-            .where((TradeAlert a) =>
-                a.mode == ScannerMode.day &&
-                a.contract?.isZeroDte != true)
-            .toList(growable: false);
-        break;
-      case 4:
+      case 1:
         filtered = all
             .where((TradeAlert a) => a.mode == ScannerMode.swing)
             .toList(growable: false);
         break;
-      case 5:
+      case 2:
         filtered = all
             .where((TradeAlert a) => a.mode == ScannerMode.leaps)
             .toList(growable: false);
@@ -137,16 +113,11 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
   }
 
   String _emptyEyebrow() {
+    // Tabs: 0=All, 1=Swing, 2=LEAPS.
     switch (_tabs.index) {
-      case _zeroDteTabIndex:
-        return '0DTE TAB QUIET';
-      case _scalpTabIndex:
-        return 'SCALP TAB QUIET';
-      case 3:
-        return 'NO DAY PROMOTES';
-      case 4:
+      case 1:
         return 'NO SWING PROMOTES';
-      case 5:
+      case 2:
         return 'NO LEAPS PROMOTES';
       default:
         return 'NO HOT TRADES RIGHT NOW';
@@ -155,15 +126,9 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
 
   String _emptyTitle() {
     switch (_tabs.index) {
-      case _zeroDteTabIndex:
-        return 'No 0DTE plays right now';
-      case _scalpTabIndex:
-        return 'No scalp setups right now';
-      case 3:
-        return 'No day-mode promotes';
-      case 4:
+      case 1:
         return 'No swing-mode promotes';
-      case 5:
+      case 2:
         return 'No LEAPS-mode promotes';
       default:
         return 'No promoted setups';
@@ -172,15 +137,9 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
 
   String _emptyMessage() {
     switch (_tabs.index) {
-      case _zeroDteTabIndex:
-        return 'Promoted same-day-expiry options plays appear here. New 0DTE setups land as soon as a SPY/QQQ/IWM/DIA alert hits A grade or higher during market hours.';
-      case _scalpTabIndex:
-        return '0DTE 5-min scalps on SPY/QQQ/IWM/DIA + mega-caps. Cards have a 10-minute TTL and disappear when they expire. Enable scalp pushes in Settings → Notifications if you want a buzz when one fires.';
-      case 3:
-        return 'Promoted intraday setups land here once the scanner flags an A or A+ on a day-mode candidate.';
-      case 4:
+      case 1:
         return 'Promoted swing setups land here once the scanner flags an A+ on the multi-day universe.';
-      case 5:
+      case 2:
         return 'Promoted LEAPS land here on the rare strong long-dated thesis. Updates twice per session.';
       default:
         return "When the scanner promotes an A+ setup or the team hand-picks a play, it'll land here first. Pull down to refresh — new alerts appear automatically during US market hours.";
@@ -189,13 +148,7 @@ class _HotTradesScreenState extends ConsumerState<HotTradesScreen>
 
   IconData _emptyIcon() {
     switch (_tabs.index) {
-      case _zeroDteTabIndex:
-        return Icons.flash_on;
-      case _scalpTabIndex:
-        return Icons.flash_on_outlined;
-      case 3:
-        return Icons.bolt_outlined;
-      case 5:
+      case 2:
         return Icons.calendar_month_outlined;
       default:
         return Icons.local_fire_department_outlined;
@@ -363,24 +316,15 @@ class _ScannerScheduleHintCard extends StatelessWidget {
   final int zeroDteIndex;
 
   String get _line {
-    if (modeIndex == zeroDteIndex) {
-      return '0DTE scans every minute during the open. Plays land instantly when a same-day SPY / QQQ / IWM / DIA setup hits A grade or higher.';
-    }
+    // Tabs: 0=All, 1=Swing, 2=LEAPS. Legacy zeroDteIndex/scalpTabIndex
+    // are -1 sentinels post-cutover; those branches are unreachable.
     switch (modeIndex) {
+      case 1:
+        return 'Swing-mode scanner runs every 2 minutes during the session. Promotes require A+ grade for multi-day setups.';
       case 2:
-        // Scalp tab (0DTE 5-min opt-in scanner).
-        return 'Scalp scanner runs every 15s during market hours on SPY/QQQ/IWM/DIA + mega-caps. Cards have a 10-minute TTL. Enable scalp pushes in Settings → Notifications.';
-      case 3:
-        // Day tab.
-        return 'Day-mode scanner runs every minute from 9:30 AM to 1:30 PM ET. New A / A+ alerts auto-promote here.';
-      case 4:
-        // Swing tab.
-        return 'Swing-mode scanner runs at 10:00 AM and 3:30 PM ET. Promotes require A+ grade for multi-day setups.';
-      case 5:
-        // LEAPS tab.
         return 'LEAPS scanner runs twice daily (10:30 AM, 2:30 PM ET). Long-dated A+ setups only — quiet by design.';
       default:
-        return 'Scanner runs every minute during market hours and twice daily for swing / LEAPS. Promotes appear here automatically — pull down to refresh.';
+        return 'Scanner runs during market hours (swing every 2 min, LEAPS twice daily). Promotes appear here automatically — pull down to refresh.';
     }
   }
 
