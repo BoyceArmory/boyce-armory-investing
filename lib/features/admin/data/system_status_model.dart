@@ -14,6 +14,7 @@ class SystemStatus extends Equatable {
     required this.firebase,
     required this.queryTimeMs,
     required this.fetchedAt,
+    this.massiveEnabled = true,
   });
 
   final ServiceInfo service;
@@ -24,6 +25,15 @@ class SystemStatus extends Equatable {
   final DevicesInfo devices;
   final FirebaseInfo firebase;
   final int queryTimeMs;
+
+  /// Whether the backend's Massive/Polygon integration is turned on
+  /// (`MASSIVE_ENABLED` on Render). Defaults to `true` when the field is
+  /// missing (older backend build) so callers fail open — i.e. don't hide
+  /// admin tabs based on a value they never actually received. While it's
+  /// `false`, the old multi-detector scanner (Detectors/Backtest/Learning
+  /// tabs) produces nothing new; the admin dashboard hides those tabs so
+  /// they don't show permanently-stale numbers.
+  final bool massiveEnabled;
 
   /// Set on the client side when we received the payload. Useful for "X seconds
   /// ago" indicators in the UI.
@@ -40,13 +50,14 @@ class SystemStatus extends Equatable {
       firebase: FirebaseInfo.fromJson(_obj(j['firebase'])),
       queryTimeMs: (j['queryTimeMs'] as num?)?.toInt() ?? 0,
       fetchedAt: DateTime.now(),
+      massiveEnabled: (j['massiveEnabled'] as bool?) ?? true,
     );
   }
 
   @override
   List<Object?> get props => [
         service, scheduler, scanner, api, push, devices, firebase, queryTimeMs,
-        fetchedAt,
+        fetchedAt, massiveEnabled,
       ];
 }
 

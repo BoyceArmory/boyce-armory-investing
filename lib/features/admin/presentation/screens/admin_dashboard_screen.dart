@@ -28,6 +28,14 @@ import '../widgets/users_tab.dart';
 ///   Users    — list + role/tier/disabled controls.
 ///   Trades   — active (with close) + closed.
 ///   Audit    — admin_logs feed.
+///
+/// Backtest / Detectors / Learning are hidden while the backend's
+/// MASSIVE_ENABLED flag is off (Aug 2026 — the TradingView webhook
+/// pipeline drives every live signal now; the old multi-detector scanner
+/// those three tabs describe produces nothing new while Massive is off,
+/// so showing them would just be permanently-stale numbers). They
+/// reappear automatically the moment Massive is re-enabled on the
+/// backend — see `SystemStatus.massiveEnabled` / `_massiveOnlyLabels`.
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -35,29 +43,44 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
+class _TabEntry {
+  const _TabEntry(this.spec, this.widget, {this.massiveOnly = false});
+  final _TabSpec spec;
+  final Widget widget;
+  final bool massiveOnly;
+}
+
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs;
+  late TabController _tabs;
+  bool _massiveEnabled = true;
+  late List<_TabEntry> _visible;
 
-  static const List<_TabSpec> _specs = <_TabSpec>[
-    _TabSpec('Status', Icons.monitor_heart_outlined),
-    _TabSpec('Scanner', Icons.radar),
-    _TabSpec('Alerts', Icons.campaign_outlined),
-    _TabSpec('Jobs', Icons.flash_on),
-    _TabSpec('Push', Icons.notifications_active_outlined),
-    _TabSpec('Backtest', Icons.analytics_outlined),
-    _TabSpec('Detectors', Icons.tune),
-    _TabSpec('Cooldowns', Icons.timer_outlined),
-    _TabSpec('Learning', Icons.school_outlined),
-    _TabSpec('Users', Icons.people_outline),
-    _TabSpec('Trades', Icons.show_chart),
-    _TabSpec('Audit', Icons.history),
+  static const List<_TabEntry> _allTabs = <_TabEntry>[
+    _TabEntry(_TabSpec('Status', Icons.monitor_heart_outlined), StatusTab()),
+    _TabEntry(_TabSpec('Scanner', Icons.radar), ScannerOpsTab()),
+    _TabEntry(_TabSpec('Alerts', Icons.campaign_outlined), AlertsTab()),
+    _TabEntry(_TabSpec('Jobs', Icons.flash_on), JobsTab()),
+    _TabEntry(_TabSpec('Push', Icons.notifications_active_outlined), PushTab()),
+    _TabEntry(_TabSpec('Backtest', Icons.analytics_outlined), BacktestTab(),
+        massiveOnly: true),
+    _TabEntry(_TabSpec('Detectors', Icons.tune), DetectorsTab(), massiveOnly: true),
+    _TabEntry(_TabSpec('Cooldowns', Icons.timer_outlined), CooldownsTab()),
+    _TabEntry(_TabSpec('Learning', Icons.school_outlined), LearningTab(),
+        massiveOnly: true),
+    _TabEntry(_TabSpec('Users', Icons.people_outline), UsersTab()),
+    _TabEntry(_TabSpec('Trades', Icons.show_chart), TradesTab()),
+    _TabEntry(_TabSpec('Audit', Icons.history), AuditTab()),
   ];
+
+  List<_TabEntry> _computeVisible() =>
+      _allTabs.where((t) => !t.massiveOnly || _massiveEnabled).toList(growable: false);
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: _specs.length, vsync: this);
+    _visible = _computeVisible();
+    _tabs = TabController(length: _visible.length, vsync: this);
     // Bi-directional sync: when the user swipes/taps the bar, push the new
     // index into the provider so other widgets (e.g. Status cards) read the
     // current tab. When the provider mutates (e.g. a card tap calls notifier.state =),
@@ -78,15 +101,46 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
     super.dispose();
   }
 
+  /// Rebuilds the tab list/controller when the massiveEnabled flag changes
+  /// (only happens on a backend redeploy, but handled live in case the
+  /// admin has the dashboard open when it flips). Preserves the current
+  /// tab selection where possible.
+  void _syncMassiveEnabled(bool enabled) {
+    if (enabled == _massiveEnabled) return;
+    final currentLabel = _visible[_tabs.index.clamp(0, _visible.length - 1)].spec.label;
+    setState(() {
+      _massiveEnabled = enabled;
+      _visible = _computeVisible();
+      final newIndex = _visible.indexWhere((t) => t.spec.label == currentLabel);
+      _tabs.dispose();
+      _tabs = TabController(
+        length: _visible.length,
+        vsync: this,
+        initialIndex: newIndex >= 0 ? newIndex : 0,
+      );
+      _tabs.addListener(() {
+        if (_tabs.indexIsChanging) return;
+        final cur = ref.read(adminTabIndexProvider);
+        if (cur != _tabs.index) {
+          ref.read(adminTabIndexProvider.notifier).state = _tabs.index;
+        }
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isAdmin = ref.watch(isAdminProvider);
     // Listen for jump-to-tab requests from anywhere in the tree.
     ref.listen<int>(adminTabIndexProvider, (prev, next) {
-      if (next < 0 || next >= _specs.length) return;
+      if (next < 0 || next >= _visible.length) return;
       if (_tabs.index != next) {
         _tabs.animateTo(next);
       }
+    });
+    ref.listen(systemStatusStreamProvider, (prev, next) {
+      final enabled = next.valueOrNull?.massiveEnabled;
+      if (enabled != null) _syncMassiveEnabled(enabled);
     });
     return Scaffold(
       backgroundColor: AppColors.obsidian,
@@ -109,24 +163,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
               )
             : Column(
                 children: <Widget>[
-                  _TabBarStrip(controller: _tabs, specs: _specs),
+                  _TabBarStrip(
+                    controller: _tabs,
+                    specs: [for (final t in _visible) t.spec],
+                  ),
                   Expanded(
                     child: TabBarView(
                       controller: _tabs,
-                      children: const <Widget>[
-                        StatusTab(),
-                        ScannerOpsTab(),
-                        AlertsTab(),
-                        JobsTab(),
-                        PushTab(),
-                        BacktestTab(),
-                        DetectorsTab(),
-                        CooldownsTab(),
-                        LearningTab(),
-                        UsersTab(),
-                        TradesTab(),
-                        AuditTab(),
-                      ],
+                      children: [for (final t in _visible) t.widget],
                     ),
                   ),
                 ],
