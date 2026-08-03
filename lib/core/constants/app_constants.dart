@@ -4,7 +4,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Boyce Armory';
-  static const String appTagline = 'Premium options intelligence.';
+  static const String appTagline = 'Live trade call-outs, sourced from the tape.';
 
   // Defaults
   static const Duration defaultAnimationDuration = Duration(milliseconds: 280);

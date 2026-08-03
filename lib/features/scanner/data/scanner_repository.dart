@@ -66,7 +66,7 @@ class ScannerRepository {
       // populated, drops the stale skeleton clone.
       final Map<String, ScannerAlert> byKey = <String, ScannerAlert>{};
       for (final ScannerAlert a in visible) {
-        final String key = '${a.mode?.wire ?? "?"}:${a.symbol.toUpperCase()}';
+        final String key = '${a.mode.wire}:${a.symbol.toUpperCase()}';
         final ScannerAlert? cur = byKey[key];
         if (cur == null) {
           byKey[key] = a;

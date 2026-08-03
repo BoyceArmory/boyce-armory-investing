@@ -1,5 +1,5 @@
 name: boyce_armory
-description: Boyce Armory Investing - premium options trading education + live scanner alerts.
+description: Boyce Armory Investing - live TradingView-sourced trade call-outs across Day, Swing, and LEAPS.
 publish_to: "none"
 version: 2.5.0+30
 

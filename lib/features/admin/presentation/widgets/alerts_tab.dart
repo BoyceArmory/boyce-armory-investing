@@ -253,13 +253,11 @@ class _IconButton extends StatelessWidget {
     required this.tooltip,
     required this.onTap,
     this.busy = false,
-    this.color,
   });
   final IconData icon;
   final String tooltip;
   final VoidCallback onTap;
   final bool busy;
-  final Color? color;
   @override
   Widget build(BuildContext context) {
     return IconButton(
@@ -269,7 +267,7 @@ class _IconButton extends StatelessWidget {
               width: 14, height: 14,
               child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold),
             )
-          : Icon(icon, size: 18, color: color ?? AppColors.textSecondary),
+          : Icon(icon, size: 18, color: AppColors.textSecondary),
       onPressed: busy ? null : onTap,
     );
   }
