@@ -7,23 +7,19 @@ import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/responsive_container.dart';
 
-/// 3-column quick-action grid (5 tiles: Hot Trades, Scanner, Premarket,
-/// Chat, Learn). Premarket joined the row in May 2026 so the morning
-/// watchlist is one tap from home. Premarket has no shipped artwork yet, so
-/// its tile falls back to an icon + label until the PNG is added to
-/// assets/buttons/premarket_button.png.
+/// 3-column quick-action grid (5 tiles: Scanner, Premarket, Chat, Learn,
+/// News). Premarket joined the row in May 2026 so the morning watchlist is
+/// one tap from home. Premarket has no shipped artwork yet, so its tile
+/// falls back to an icon + label until the PNG is added to
+/// assets/buttons/premarket_button.png. The Hot Trades tile was removed
+/// August 2026 along with the dedicated Hot Trades tab — Scanner covers
+/// Day/Swing/LEAPS channels directly now.
 class QuickActionGrid extends StatelessWidget {
   const QuickActionGrid({super.key});
 
   @override
   Widget build(BuildContext context) {
     const List<_Action> actions = <_Action>[
-      _Action(
-        asset: AssetPaths.btnHotTrades,
-        path: RoutePaths.hotTrades,
-        fallbackLabel: 'Hot Trades',
-        fallbackIcon: Icons.local_fire_department,
-      ),
       _Action(
         asset: AssetPaths.btnScanner,
         path: RoutePaths.scanner,
@@ -55,9 +51,9 @@ class QuickActionGrid extends StatelessWidget {
         fallbackIcon: Icons.article_outlined,
       ),
     ];
-    // 6 tiles: phone gets a clean 3x2 grid (2 rows of 3). iPad gets one
-    // horizontal row of all 6 buttons.
-    final int cols = isWideScreen(context) ? 6 : 3;
+    // 5 tiles: phone gets a 3-then-2 grid. iPad gets one horizontal row of
+    // all 5 buttons.
+    final int cols = isWideScreen(context) ? 5 : 3;
     return GridView.count(
       crossAxisCount: cols,
       mainAxisSpacing: 10,

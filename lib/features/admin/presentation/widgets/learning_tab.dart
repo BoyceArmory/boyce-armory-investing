@@ -168,13 +168,6 @@ class _Body extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _Section(
-          title: 'OPTIONS FLOW CONFIRMATION',
-          subtitle:
-              'When options flow agrees with signal direction, are outcomes better?',
-          rows: _flowRows(data),
-        ),
-        const SizedBox(height: 16),
-        _Section(
           title: 'TOP DETECTORS',
           subtitle: 'Most profitable (min 5 trades).',
           rows: _detectorRows(data, top: true),
@@ -197,8 +190,6 @@ class _Body extends StatelessWidget {
       'Morning (9:30-11:30) / lunch (11:30-13:30) / afternoon (13:30-16:00) win rates. Most day-mode detectors live in morning; if lunch is bleeding, GATE 4 may need to widen the lunch suppression window.';
   static const _catalystExplain =
       'Trades stamped with a news-catalyst boost vs trades without. Lift = with - without. Negative lift means the +5 catalyst score boost is mis-calibrated — the news isn\'t actually predictive.';
-  static const _flowExplain =
-      'Trades where Polygon options flow agreed with the signal direction vs trades where it didn\'t. Positive lift confirms cross-API flow is a useful signal worth keeping in the scorer.';
   static const _detectorExplain =
       'Per-detector profitability (min 5 trades). Top = positive expectancy contributors; worst = drag on the system. Use this view to rank what to retire, what to keep, what to amplify.';
 
@@ -281,43 +272,6 @@ class _Body extends StatelessWidget {
         raw: c,
         sectionTitle: 'NEWS CATALYST · LIFT',
         sectionExplain: _catalystExplain,
-      ),
-    ];
-  }
-
-  List<_RowSpec> _flowRows(Map<String, dynamic> d) {
-    final Map<String, dynamic>? f = d['flow'] as Map<String, dynamic>?;
-    if (f == null) return <_RowSpec>[];
-    final Map<String, dynamic> w =
-        f['withFlowConfirmation'] as Map<String, dynamic>;
-    final Map<String, dynamic> wo =
-        f['withoutFlowConfirmation'] as Map<String, dynamic>;
-    return <_RowSpec>[
-      _RowSpec(
-        label: 'CONFIRMED',
-        right:
-            '${_pct(w['winRate'])} • ${(w['totalTrades'] as num?)?.toInt() ?? 0} trades',
-        accentR: (w['avgRMultiple'] as num?)?.toDouble() ?? 0,
-        raw: w,
-        sectionTitle: 'FLOW CONFIRMATION · CONFIRMED',
-        sectionExplain: _flowExplain,
-      ),
-      _RowSpec(
-        label: 'NOT CONFIRMED',
-        right:
-            '${_pct(wo['winRate'])} • ${(wo['totalTrades'] as num?)?.toInt() ?? 0} trades',
-        accentR: (wo['avgRMultiple'] as num?)?.toDouble() ?? 0,
-        raw: wo,
-        sectionTitle: 'FLOW CONFIRMATION · NOT CONFIRMED',
-        sectionExplain: _flowExplain,
-      ),
-      _RowSpec(
-        label: 'LIFT',
-        right: '${_pct(f['lift'])} edge',
-        accentR: (f['lift'] as num?)?.toDouble() ?? 0,
-        raw: f,
-        sectionTitle: 'FLOW CONFIRMATION · LIFT',
-        sectionExplain: _flowExplain,
       ),
     ];
   }

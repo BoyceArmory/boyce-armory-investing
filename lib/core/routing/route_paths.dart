@@ -14,10 +14,9 @@ class RoutePaths {
 
   // Customer shell
   static const String home = '/home';
-  static const String hotTrades = '/hot-trades';
   static const String scanner = '/scanner';
   /// Premarket watchlist — top movers ranked at 9:25 AM ET by the backend
-  /// premarket-scan job. Same card format as Hot Trades.
+  /// premarket-scan job. Uses HotTradeCard for rendering (shared widget).
   static const String premarket = '/premarket';
   /// Settings — notification toggles, disclaimer, about, admin tools.
   static const String settings = '/settings';

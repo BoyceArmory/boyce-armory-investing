@@ -16,13 +16,12 @@ import '../providers/scanner_providers.dart';
 import '../widgets/scanner_alert_card.dart';
 import '../widgets/scanner_card_skeleton.dart';
 
-/// 5-tab scanner screen: All / 0DTE / Day / Swing / LEAPS.
-///
-/// 0DTE is a derived view on top of the day-mode stream — it filters to
-/// alerts whose suggested contract expires today (SPY/QQQ/IWM/DIA index
-/// options + any other ticker that happens to have a 0DTE chain). The tab
-/// is positioned right after All so customers see the highest-conviction
-/// intraday options plays first.
+/// 4-tab scanner screen: All / Day / Swing / LEAPS. All three channels are
+/// TradingView-sourced (August 2026) — a Pine Script strategy posts a
+/// webhook per setup, the backend maps it straight into this same
+/// ScannerAlert shape by chart timeframe (intraday -> day, daily -> swing,
+/// weekly -> leaps). See backend/src/controllers/webhook.controller.ts and
+/// tradingview/boyce_armory_trend_pullback.pine.
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
 
@@ -35,26 +34,17 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   late final TabController _tabs;
   bool _adminView = false;
 
-  // Sentinel index for the 0DTE filter — it's a derived view on the day
-  // stream, not a real ScannerMode. _watchForCurrentTab() special-cases
-  // Legacy index — kept as a sentinel so leftover 0DTE-branch code paths
-  // still compile. With the day/scalp tabs removed, no tab index maps to
-  // this value, so the branch is unreachable at runtime.
-  static const int _zeroDteTabIndex = -1;
-
-  /// Tab modes per index. Narrowed July 2026 to swing + leaps only —
-  /// day/scalp/0DTE tabs removed to match the swing+leap focus. Backend
-  /// day/scalp scanners are also disabled via env (see
-  /// SCANNER_DAY_ENABLED / SCANNER_SCALP_ENABLED), so those streams
-  /// would be empty anyway; hiding the tabs avoids a confusing UX.
+  /// Tab modes per index: All / Day / Swing / LEAPS.
   static const List<ScannerMode?> _tabModes = <ScannerMode?>[
     null,               // All
+    ScannerMode.day,
     ScannerMode.swing,
     ScannerMode.leaps,
   ];
 
   static const List<String> _tabLabels = <String>[
     'All',
+    'Day',
     'Swing',
     'LEAPS',
   ];
@@ -79,36 +69,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     final ScannerMode? mode = _tabModes[tabIndex];
     final bool useAdmin = _adminView && ref.read(isAdminProvider);
 
-    // 0DTE tab: pull the day-mode stream and apply an in-memory filter
-    // for alerts whose suggested contract expires today. This avoids a
-    // separate backend endpoint — the data is already in the day stream,
-    // we just slice it. Admin "All" toggle still works: it swaps the
-    // upstream source to admin_only results before filtering.
-    if (tabIndex == _zeroDteTabIndex) {
-      final AsyncValue<List<ScannerAlert>> upstream = useAdmin
-          ? ref.watch(adminScannerResultsByModeProvider(ScannerMode.day))
-          : ref.watch(publicScannerAlertsByModeProvider(ScannerMode.day));
-      return upstream.whenData(
-        (List<ScannerAlert> alerts) => alerts
-            .where((ScannerAlert a) => a.suggestedContract?.isZeroDte == true)
-            .toList(growable: false),
-      );
-    }
-
-    // Day tab: same as before, but EXCLUDE alerts whose suggested
-    // contract expires today. Those land in the 0DTE tab exclusively so
-    // the user doesn't see the same SPY card on both tabs.
-    if (mode == ScannerMode.day) {
-      final AsyncValue<List<ScannerAlert>> upstream = useAdmin
-          ? ref.watch(adminScannerResultsByModeProvider(ScannerMode.day))
-          : ref.watch(publicScannerAlertsByModeProvider(ScannerMode.day));
-      return upstream.whenData(
-        (List<ScannerAlert> alerts) => alerts
-            .where((ScannerAlert a) => a.suggestedContract?.isZeroDte != true)
-            .toList(growable: false),
-      );
-    }
-
     if (useAdmin) {
       return mode == null
           ? ref.watch(adminScannerResultsProvider)
@@ -119,46 +79,35 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         : ref.watch(publicScannerAlertsByModeProvider(mode));
   }
 
-  bool get _isZeroDteTab => _tabs.index == _zeroDteTabIndex;
-
   String _emptyEyebrowFor(ScannerMode? mode) {
-    if (_isZeroDteTab) return '0DTE TAB QUIET';
     if (mode == null) return 'NO ACTIVE SETUPS';
     return switch (mode) {
-      ScannerMode.day => 'DAY SCANNER QUIET',
-      ScannerMode.swing => 'SWING SCANNER QUIET',
-      ScannerMode.leaps => 'LEAPS SCANNER QUIET',
-      ScannerMode.scalp => 'SCALP SCANNER QUIET',
+      ScannerMode.day => 'DAY CHANNEL QUIET',
+      ScannerMode.swing => 'SWING CHANNEL QUIET',
+      ScannerMode.leaps => 'LEAPS CHANNEL QUIET',
     };
   }
 
   String _emptyTitleFor(ScannerMode? mode) {
-    if (_isZeroDteTab) return 'No 0DTE plays right now';
     if (mode == null) return 'No setups firing right now';
     return switch (mode) {
       ScannerMode.day => 'No day setups',
       ScannerMode.swing => 'No swing setups',
       ScannerMode.leaps => 'No LEAPS candidates',
-      ScannerMode.scalp => 'No scalp setups',
     };
   }
 
   String _emptyMessageFor(ScannerMode? mode) {
-    if (_isZeroDteTab) {
-      return 'Same-day-expiry option setups appear here when the scanner fires on SPY / QQQ / IWM / DIA during market hours. New plays show up as soon as they trigger.';
-    }
     if (mode == null) {
-      return 'The live scanner publishes A+ setups here automatically. Pull down to refresh, or check back during US market hours (9:30 AM – 4:00 PM ET).';
+      return 'Setups call out here automatically as they fire on TradingView. Pull down to refresh, or check back during US market hours (9:30 AM – 4:00 PM ET).';
     }
     return switch (mode) {
       ScannerMode.day =>
-        'Day scanner runs every minute from 9:30 AM – 1:30 PM ET, Mon–Fri. New setups appear here as soon as they fire.',
+        'Day setups call out intraday during market hours as the trend-pullback strategy fires on the 5–15 minute charts. Held same session.',
       ScannerMode.swing =>
-        'Swing scanner runs every 5 minutes during US market hours on the large-cap universe. Pull down to refresh.',
+        'Swing setups call out on the daily chart as the trend-pullback strategy fires. Held 1–10 days.',
       ScannerMode.leaps =>
-        'LEAPS scanner runs hourly during US market hours on long-uptrend candidates. Daily-candle setups update slowly by design.',
-      ScannerMode.scalp =>
-        '0DTE 5-min scalp scanner runs every 30s from 9:35 AM – 3:30 PM ET on SPY / QQQ / IWM / DIA + mega-caps. Alerts expire after 10 minutes — react fast.',
+        'LEAPS setups call out on the weekly chart — long-dated, multi-month trend continuation. Quiet by design.',
     };
   }
 
@@ -251,13 +200,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                             eyebrow: _emptyEyebrowFor(mode),
                             title: _emptyTitleFor(mode),
                             message: _emptyMessageFor(mode),
-                            icon: _isZeroDteTab
-                                ? Icons.flash_on
-                                : mode == ScannerMode.day
-                                    ? Icons.bolt_outlined
-                                    : mode == ScannerMode.leaps
-                                        ? Icons.calendar_month_outlined
-                                        : Icons.radar_outlined,
+                            icon: switch (mode) {
+                              ScannerMode.leaps =>
+                                Icons.calendar_month_outlined,
+                              ScannerMode.day => Icons.bolt_outlined,
+                              _ => Icons.radar_outlined,
+                            },
                           ),
                         ],
                       );
@@ -364,4 +312,23 @@ class _AdminToggle extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.s
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.gold.withValues(alpha: 0.16)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.4,
+            color: selected ? AppColors.gold : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 import 'enums.dart';
-import 'option_contract_model.dart';
 
 /// Mirror of `trade_alerts/{id}` - user-visible buy/watchlist alerts.
 class TradeAlert extends Equatable {
@@ -18,7 +17,6 @@ class TradeAlert extends Equatable {
     required this.visibility,
     required this.createdBy,
     required this.createdAt,
-    this.contract,
     this.target,
     this.stop,
     this.grade,
@@ -43,7 +41,6 @@ class TradeAlert extends Equatable {
   final AlertVisibility visibility;
   final String createdBy;
   final DateTime createdAt;
-  final OptionContract? contract;
   final double? target;
   final double? stop;
   final SetupGrade? grade;
@@ -59,15 +56,14 @@ class TradeAlert extends Equatable {
   /// Day percent change (signed). Optional.
   final double? dayChangePct;
 
-  /// Scanner mode that produced this alert — "day", "swing", or "leaps".
+  /// Scanner mode that produced this alert — "swing" or "leaps".
   /// Auto-merged scanner alerts carry this so the Hot Trade card can render
-  /// a DAY / SWING / LEAPS badge. Null for manual admin-created alerts.
+  /// a SWING / LEAPS badge. Null for manual admin-created alerts.
   final ScannerMode? mode;
 
   bool get isBullish => direction == SetupDirection.bullish;
 
   factory TradeAlert.fromMap(String id, Map<String, dynamic> m) {
-    final dynamic c = m['contract'];
     return TradeAlert(
       id: id,
       symbol: (m['symbol'] ?? '') as String,
@@ -82,7 +78,6 @@ class TradeAlert extends Equatable {
       visibility: AlertVisibilityX.fromWire(m['visibility'] as String?),
       createdBy: (m['createdBy'] ?? '') as String,
       createdAt: _parseDate(m['createdAt']) ?? DateTime.now(),
-      contract: c is Map<String, dynamic> ? OptionContract.fromMap(c) : null,
       target: (m['target'] as num?)?.toDouble(),
       stop: (m['stop'] as num?)?.toDouble(),
       grade: m['grade'] != null
@@ -116,7 +111,6 @@ class TradeAlert extends Equatable {
         visibility,
         createdBy,
         createdAt,
-        contract,
         target,
         stop,
         grade,

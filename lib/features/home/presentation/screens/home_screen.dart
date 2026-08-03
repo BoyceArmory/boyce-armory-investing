@@ -10,12 +10,9 @@ import '../../../../shared/widgets/responsive_container.dart';
 import '../../../../shared/widgets/push_permission_banner.dart';
 import '../../../../shared/widgets/screen_header.dart';
 import '../../../../shared/widgets/snooze_indicator_strip.dart';
-import '../../../../shared/widgets/whats_new_banner.dart';
-import '../../../alerts/presentation/providers/alerts_providers.dart';
 import '../providers/home_providers.dart';
 import '../widgets/desk_performance_card.dart';
 import '../widgets/event_timeline_card.dart';
-import '../widgets/iv_rank_card.dart';
 import '../widgets/lesson_of_day_card.dart';
 import '../widgets/market_pulse_card.dart';
 import '../widgets/market_regime_strip.dart';
@@ -30,17 +27,16 @@ import '../widgets/vix_gauge_card.dart';
 ///   1. ScreenHeader              (brand header art)
 ///   2. DeskPerformanceCard       (track record card — MOVED UP, was below)
 ///   3. MarketPulseCard           (SPY / QQQ / DIA strip)
-///   4. QuickActionGrid           (Hot Trades / Scanner / Premarket / Chat /
-///                                 Learn — MOVED ABOVE the heatmap)
+///   4. QuickActionGrid           (Scanner / Premarket / Chat / Learn /
+///                                 News — MOVED ABOVE the heatmap)
 ///   5. MarketRegimeStrip         (regime + countdown)
 ///   6. VixGaugeCard              (volatility gauge)
 ///   7. SectorHeatmapCard         (11-sector grid)
 ///   8. EventTimelineCard         (today's economic events)
 ///   9. NewsTickerCard            (market news)
 ///
-/// Hot Trades preview section is intentionally REMOVED from home; the
-/// dedicated Hot Trades tab + quick-action button cover that need without
-/// duplicating content on home.
+/// The Hot Trades tab was removed August 2026 — Day/Swing/LEAPS channels
+/// (TradingView-sourced) all live on the Scanner tab now.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -54,9 +50,7 @@ class HomeScreen extends ConsumerWidget {
         color: AppColors.gold,
         backgroundColor: AppColors.graphite,
         onRefresh: () async {
-          ref.invalidate(hotAlertsProvider);
           ref.invalidate(homeOverviewStreamProvider);
-          ref.invalidate(ivRankSummaryProvider);
         },
         child: ListView(
           padding: EdgeInsets.zero,
@@ -90,17 +84,6 @@ class _HomeBody extends ConsumerWidget {
         // master pref says ON (i.e. user wants pushes but they're not
         // arriving because iOS Settings has them off).
         const PushPermissionBanner(),
-        const SizedBox(height: 8),
-        // ---- What's-new banner — auto-hides when the user dismisses it
-        // OR after they have already viewed/dismissed the v2.4.0 tip on
-        // any device. Internally guards via isTipDismissedProvider.
-        const WhatsNewBanner(),
-        // The banner has its own internal padding; the snooze strip needs
-        // a spacer when the banner is present, but conditionally adding
-        // SizedBox would force WhatsNewBanner.build to expose its own
-        // dismissed state. Simpler: always add 8pt — when the banner
-        // collapses to SizedBox.shrink it's invisible anyway, the gap is
-        // negligible and the layout stays stable across show/hide.
         const SizedBox(height: 8),
         // ---- Snooze indicator (only renders when armed).
         // Tap routes to /settings so the user can extend or cancel from
@@ -141,13 +124,6 @@ class _HomeBody extends ConsumerWidget {
         const FadeSlideIn(
           delay: Duration(milliseconds: 180),
           child: VixGaugeCard(),
-        ),
-        const SizedBox(height: 12),
-
-        // ---- IV Rank tile (SPY/QQQ/IWM at-a-glance)
-        const FadeSlideIn(
-          delay: Duration(milliseconds: 200),
-          child: IvRankCard(),
         ),
         const SizedBox(height: 12),
 

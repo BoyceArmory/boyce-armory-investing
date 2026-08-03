@@ -45,8 +45,10 @@ class _BoyceArmoryAppState extends ConsumerState<BoyceArmoryApp> {
   ///                        is present in the payload, else /scanner as a
   ///                        safe fallback. The detail screen renders the
   ///                        exact setup the user got buzzed about.
-  ///   - `trade_alert`    → /alert/{alertId} when the alert id is present
-  ///                        (admin-posted Hot Trades), else /hot-trades.
+  ///   - `trade_alert`    → /alert/{alertId} when the alert id is present,
+  ///                        else /home (Hot Trades tab was removed August
+  ///                        2026 in favor of TradingView-sourced channels
+  ///                        on the Scanner tab).
   ///   - `admin_event`    → /admin/notifications (new-signup pushes, etc.)
   ///                        The redirect logic gates this behind isAdmin,
   ///                        so a non-admin tapping a stray admin push will
@@ -83,7 +85,7 @@ class _BoyceArmoryAppState extends ConsumerState<BoyceArmoryApp> {
         if (alertId.isNotEmpty) {
           router.go(RoutePaths.alertDetailFor(alertId));
         } else {
-          router.go(RoutePaths.hotTrades);
+          router.go(RoutePaths.home);
         }
         break;
       case 'admin_event':

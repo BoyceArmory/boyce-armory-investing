@@ -72,11 +72,6 @@ final FutureProvider<List<Map<String, dynamic>>> scannerAlertsForAdminProvider =
   return ref.watch(adminRepositoryProvider).listScannerAlerts(includeAdmin: true, limit: 100);
 });
 
-final FutureProvider<List<Map<String, dynamic>>> tradeAlertsForAdminProvider =
-    FutureProvider<List<Map<String, dynamic>>>((Ref ref) {
-  return ref.watch(adminRepositoryProvider).listTradeAlerts(limit: 50);
-});
-
 final FutureProvider<List<Map<String, dynamic>>> adminUsersProvider =
     FutureProvider<List<Map<String, dynamic>>>((Ref ref) {
   return ref.watch(adminRepositoryProvider).listUsers(limit: 200);

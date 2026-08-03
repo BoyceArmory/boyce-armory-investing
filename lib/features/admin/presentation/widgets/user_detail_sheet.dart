@@ -15,8 +15,7 @@ import '../providers/admin_providers.dart';
 ///   • Signup info: createdAt + relative time, last notifiedAt
 ///   • Push readiness: active device tokens count
 ///   • Engagement: watchlist count + first 12 tickers, last 5 alert actions
-///   • Prefs summary: master/scanner/hot/premarket toggles + min-grade +
-///                    sizingPrefs (accountSize, maxRiskPct)
+///   • Prefs summary: master/scanner/hot/premarket toggles + min-grade
 ///
 /// All data lives behind a single round-trip to /api/admin/users/:uid/detail
 /// so opening the sheet is one fast network call.
@@ -181,8 +180,6 @@ class _DetailBody extends StatelessWidget {
     final notifPrefs =
         (user['notificationPrefs'] as Map?)?.cast<String, dynamic>() ??
             const {};
-    final sizingPrefs =
-        (user['sizingPrefs'] as Map?)?.cast<String, dynamic>() ?? const {};
 
     return ListView(
       controller: scrollCtrl,
@@ -327,11 +324,6 @@ class _DetailBody extends StatelessWidget {
         const _SectionHeader(title: 'Notification prefs'),
         const SizedBox(height: 8),
         _PrefSummary(prefs: notifPrefs),
-
-        const SizedBox(height: 16),
-        const _SectionHeader(title: 'Sizing'),
-        const SizedBox(height: 8),
-        _SizingSummary(prefs: sizingPrefs),
 
         const SizedBox(height: 24),
       ],
@@ -621,39 +613,6 @@ class _PrefSummary extends StatelessWidget {
             color: recap ? AppColors.textSecondary : AppColors.bearish),
         _Pill(text: 'MIN ${minGrade.toUpperCase()}',
             color: AppColors.gold),
-      ],
-    );
-  }
-}
-
-class _SizingSummary extends StatelessWidget {
-  const _SizingSummary({required this.prefs});
-  final Map<String, dynamic> prefs;
-  @override
-  Widget build(BuildContext context) {
-    final acct = (prefs['accountSize'] as num?)?.toDouble();
-    final risk = (prefs['maxRiskPct'] as num?)?.toDouble();
-    if (acct == null && risk == null) {
-      return const Text(
-        'Not configured — sizing chips on alerts show the "Set sizing" CTA for this user.',
-        style: TextStyle(
-            color: AppColors.textTertiary, fontSize: 12, height: 1.4),
-      );
-    }
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        if (acct != null)
-          _Pill(
-            text: 'ACCT \$${acct.toStringAsFixed(0)}',
-            color: AppColors.gold,
-          ),
-        if (risk != null)
-          _Pill(
-            text: 'RISK ${risk.toStringAsFixed(2)}%',
-            color: AppColors.gold,
-          ),
       ],
     );
   }

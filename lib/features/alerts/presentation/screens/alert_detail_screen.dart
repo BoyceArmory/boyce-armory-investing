@@ -9,7 +9,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
-import '../../../../shared/widgets/position_sizing_chip.dart';
 import '../../../../shared/widgets/risk_calculator_sheet.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
@@ -233,52 +232,6 @@ class _Body extends StatelessWidget {
           delay: const Duration(milliseconds: 180),
           child: _InvalidationCard(alert: alert),
         ),
-        if (alert.contract != null) ...<Widget>[
-          const SizedBox(height: 16),
-          FadeSlideIn(
-            delay: const Duration(milliseconds: 200),
-            child: PremiumCard(
-              accent: PremiumCardAccent.gold,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      const Icon(Icons.local_offer_outlined,
-                          color: AppColors.gold, size: 18),
-                      const SizedBox(width: 8),
-                      Text('Suggested contract', style: tt.titleMedium),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    alert.contract!.symbol,
-                    style: AppTypography.mono(
-                      size: 16,
-                      weight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${alert.contract!.type.toUpperCase()} '
-                    '${Formatters.priceCompact(alert.contract!.strike)} '
-                    '· ${alert.contract!.expiration}',
-                    style: tt.bodyMedium,
-                  ),
-                  const SizedBox(height: 10),
-                  // Per-user position sizing — uses sizingPrefs to suggest
-                  // qty + total cost + % risk. Tap routes to Settings so
-                  // the user can edit their numbers.
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child:
-                        PositionSizingChip(contract: alert.contract),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
         if (alert.notes != null && alert.notes!.isNotEmpty) ...<Widget>[
           const SizedBox(height: 16),
           FadeSlideIn(
@@ -621,9 +574,11 @@ class _InvalidationCard extends StatelessWidget {
           : 'Price extends >2% past entry on the short side without you in — late entry, wait for retest',
       'A market-wide event (Fed announcement, geopolitical shock) changes the regime — close + reassess',
       if (alert.mode == ScannerMode.day)
-        'Setup hasn\'t resolved by 12:30 PM ET — day-trade window is closing',
+        'Trade hasn\'t moved by midday — same-session setups that stall rarely resolve; flatten before the close',
       if (alert.mode == ScannerMode.swing)
         'Trade hasn\'t reached T1 within 5 sessions — thesis is decaying',
+      if (alert.mode == ScannerMode.leaps)
+        'The underlying trend breaks down on the weekly chart — the long-dated thesis no longer holds',
     ];
 
     return PremiumCard(

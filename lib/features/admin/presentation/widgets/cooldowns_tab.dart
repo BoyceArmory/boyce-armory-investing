@@ -13,7 +13,7 @@ import '../providers/admin_providers.dart';
 /// ssh'ing into the box.
 ///
 /// Auto-refreshes on pull-down. Mode filter chips at the top let the
-/// admin scope to day / swing / leaps. Tapping a row opens a drilldown
+/// admin scope to swing / leaps. Tapping a row opens a drilldown
 /// sheet (same pattern as backtest + learning + errors) with the full
 /// row map + copy-raw-JSON.
 class CooldownsTab extends ConsumerStatefulWidget {
@@ -86,16 +86,6 @@ class _CooldownsTabState extends ConsumerState<CooldownsTab> {
                 current: _mode,
                 onTap: () => setState(() => _mode = 'all'),
                 count: (_rows ?? const <Map<String, dynamic>>[]).length,
-              ),
-              const SizedBox(width: 6),
-              _ModeChip(
-                label: 'Day',
-                value: 'day',
-                current: _mode,
-                onTap: () => setState(() => _mode = 'day'),
-                count: (_rows ?? const <Map<String, dynamic>>[])
-                    .where((r) => r['mode'] == 'day')
-                    .length,
               ),
               const SizedBox(width: 6),
               _ModeChip(

@@ -113,7 +113,7 @@ class _EnableNotificationsScreenState
                 icon: Icons.tune,
                 title: 'You control everything',
                 subtitle:
-                    'Choose mode (Day / Swing / LEAPS), minimum grade, and quiet hours.',
+                    'Choose mode (Swing / LEAPS), minimum grade, and quiet hours.',
               ),
               const SizedBox(height: 18),
               const _BenefitRow(

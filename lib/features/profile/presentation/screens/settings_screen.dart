@@ -8,7 +8,6 @@ import '../../../../core/providers/auth_state_provider.dart';
 import '../../../../core/providers/service_providers.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/services/engagement_service.dart';
-import '../../../../core/services/position_sizing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/responsive_container.dart';
 import '../../../../shared/widgets/watchlist_manager_sheet.dart';
@@ -37,8 +36,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _notifAdminBuys = true;
   bool _notifPremarket = true;
   bool _notifRecap = true;
-  // OPT-IN: default false so unconfigured users don't see scalp alerts.
-  bool _notifScalp = false;
   bool _loadingPrefs = true;
   // Advanced prefs
   String _scannerMinGrade = 'all';
@@ -78,9 +75,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _notifAdminBuys = (prefs['adminBuys'] as bool?) ?? true;
         _notifPremarket = (prefs['premarket'] as bool?) ?? true;
         _notifRecap = (prefs['recap'] as bool?) ?? true;
-        // Scalp is the only OPT-IN channel — default OFF when missing
-        // from the server response. User must explicitly toggle on.
-        _notifScalp = (prefs['scalp'] as bool?) ?? false;
         _scannerMinGrade =
             (prefs['scannerMinGrade'] as String?) ?? 'all';
         _modeDay = (modes['day'] as bool?) ?? true;
@@ -277,7 +271,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             adminBuys: _notifAdminBuys,
             premarket: _notifPremarket,
             recap: _notifRecap,
-            scalp: _notifScalp,
             onMaster: (v) {
               setState(() => _notifMaster = v);
               _savePref('master', v);
@@ -301,10 +294,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onRecap: (v) {
               setState(() => _notifRecap = v);
               _savePref('recap', v);
-            },
-            onScalp: (v) {
-              setState(() => _notifScalp = v);
-              _savePref('scalp', v);
             },
           ),
           ],
@@ -369,10 +358,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const _SectionHeader('ACCOUNT'),
           const _AccountInfoSection(),
-          const SizedBox(height: 18),
-
-          const _SectionHeader('POSITION SIZING'),
-          _PositionSizingSection(),
           const SizedBox(height: 18),
 
           const _SectionHeader('MY DATA'),
@@ -650,14 +635,12 @@ class _NotificationSection extends StatelessWidget {
     required this.adminBuys,
     required this.premarket,
     required this.recap,
-    required this.scalp,
     required this.onMaster,
     required this.onScanner,
     required this.onHot,
     required this.onAdminBuys,
     required this.onPremarket,
     required this.onRecap,
-    required this.onScalp,
   });
 
   final bool master;
@@ -666,14 +649,12 @@ class _NotificationSection extends StatelessWidget {
   final bool adminBuys;
   final bool premarket;
   final bool recap;
-  final bool scalp;
   final ValueChanged<bool> onMaster;
   final ValueChanged<bool> onScanner;
   final ValueChanged<bool> onHot;
   final ValueChanged<bool> onAdminBuys;
   final ValueChanged<bool> onPremarket;
   final ValueChanged<bool> onRecap;
-  final ValueChanged<bool> onScalp;
 
   @override
   Widget build(BuildContext context) {
@@ -738,18 +719,6 @@ class _NotificationSection extends StatelessWidget {
             subtitle: '5 PM ET wrap-up: today\'s wins/losses',
             value: recap && master,
             onChanged: master ? onRecap : null,
-          ),
-          const Divider(color: AppColors.steel, height: 1),
-          _Tile(
-            // Scalp is opt-in: subtitle calls it out explicitly so users
-            // don't enable it by accident. Default is OFF on server side
-            // too — even if the master toggle flips on, scalp stays off
-            // until the user opts in here.
-            title: 'Scalp alerts · OPT-IN',
-            subtitle:
-                '0DTE 5-min scalps on SPY/QQQ/mega-caps. High frequency, fast decay — only enable if you\'re actively trading the screen.',
-            value: scalp && master,
-            onChanged: master ? onScalp : null,
           ),
         ],
       ),
@@ -837,178 +806,6 @@ class _MyDataSection extends ConsumerWidget {
         ),
         onTap: () => WatchlistManagerSheet.show(context),
       ),
-    );
-  }
-}
-
-/// Two-input form for storing the user's account size + max risk per
-/// trade. Drives the inline sizing chip on every alert card so users
-/// see "3 contracts · $450 · 1.5% risk" without re-doing the math each
-/// alert. Edits save optimistically through SizingPrefsController.
-class _PositionSizingSection extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_PositionSizingSection> createState() =>
-      _PositionSizingSectionState();
-}
-
-class _PositionSizingSectionState
-    extends ConsumerState<_PositionSizingSection> {
-  late TextEditingController _account;
-  late TextEditingController _risk;
-  bool _seeded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _account = TextEditingController();
-    _risk = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _account.dispose();
-    _risk.dispose();
-    super.dispose();
-  }
-
-  void _seedFromState(SizingPrefs p) {
-    if (_seeded) return;
-    // Provider bootstraps async — first build sees an empty SizingPrefs
-    // before the server responds. Skip seeding until real values arrive
-    // so the fields don't lock in as blanks and ignore the server load.
-    if (p.accountSize == null && p.maxRiskPct == null) return;
-    if (p.accountSize != null) {
-      _account.text = p.accountSize!.toStringAsFixed(0);
-    }
-    if (p.maxRiskPct != null) {
-      _risk.text = p.maxRiskPct!.toString();
-    }
-    _seeded = true;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final prefs = ref.watch(sizingPrefsProvider);
-    final ctl = ref.read(sizingPrefsProvider.notifier);
-    _seedFromState(prefs);
-
-    return _Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'We never know your real broker balance — these numbers stay on your account and only drive the in-app sizing chip.',
-              style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                  height: 1.4),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _NumberField(
-                    label: 'Account size',
-                    prefix: r'$',
-                    controller: _account,
-                    onSubmit: (v) {
-                      final n = double.tryParse(v.replaceAll(',', ''));
-                      if (n != null && n > 0) {
-                        ctl.setAccountSize(n);
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _NumberField(
-                    label: 'Max risk per trade',
-                    suffix: '%',
-                    controller: _risk,
-                    onSubmit: (v) {
-                      final n = double.tryParse(v);
-                      if (n != null && n > 0 && n <= 50) {
-                        ctl.setMaxRiskPct(n);
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Conventional: 0.5% conservative · 1-2% typical · 5% aggressive.',
-              style: TextStyle(
-                  color: AppColors.textTertiary,
-                  fontSize: 11,
-                  height: 1.4),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NumberField extends StatelessWidget {
-  const _NumberField({
-    required this.label,
-    required this.controller,
-    required this.onSubmit,
-    this.prefix,
-    this.suffix,
-  });
-  final String label;
-  final TextEditingController controller;
-  final ValueChanged<String> onSubmit;
-  final String? prefix;
-  final String? suffix;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label.toUpperCase(),
-            style: const TextStyle(
-                color: AppColors.textTertiary,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.7)),
-        const SizedBox(height: 4),
-        TextField(
-          controller: controller,
-          keyboardType:
-              const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w700),
-          decoration: InputDecoration(
-            isDense: true,
-            prefixText: prefix,
-            suffixText: suffix,
-            prefixStyle: const TextStyle(color: AppColors.textSecondary),
-            suffixStyle: const TextStyle(color: AppColors.textSecondary),
-            filled: true,
-            fillColor: AppColors.carbon,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.steel),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.gold),
-            ),
-          ),
-          onSubmitted: onSubmit,
-          onEditingComplete: () => onSubmit(controller.text),
-        ),
-      ],
     );
   }
 }
@@ -2272,7 +2069,7 @@ class _AdvancedNotificationsSection extends StatelessWidget {
           ),
           _Tile(
             title: 'Day setups',
-            subtitle: 'Intraday signals (1m-15m timeframe)',
+            subtitle: 'Same-session positions (intraday timeframe)',
             value: modeDay && scannerOn,
             onChanged: scannerOn ? (v) => onMode('day', v) : null,
           ),

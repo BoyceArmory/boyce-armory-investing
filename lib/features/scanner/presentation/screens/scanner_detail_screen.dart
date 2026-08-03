@@ -239,43 +239,6 @@ class _DetailBody extends StatelessWidget {
             ),
           ),
         ),
-        if (alert.suggestedContract != null) ...<Widget>[
-          const SizedBox(height: 16),
-          FadeSlideIn(
-            delay: const Duration(milliseconds: 140),
-            child: PremiumCard(
-              accent: PremiumCardAccent.gold,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      const Icon(Icons.local_offer_outlined,
-                          color: AppColors.gold, size: 18),
-                      const SizedBox(width: 8),
-                      Text('Suggested contract', style: tt.titleMedium),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    alert.suggestedContract!.symbol,
-                    style: AppTypography.mono(
-                      size: 16,
-                      weight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${alert.suggestedContract!.type.toUpperCase()} '
-                    '${Formatters.priceCompact(alert.suggestedContract!.strike)} '
-                    '· ${alert.suggestedContract!.expiration}',
-                    style: tt.bodyMedium,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
         const SizedBox(height: 16),
         FadeSlideIn(
           delay: const Duration(milliseconds: 180),

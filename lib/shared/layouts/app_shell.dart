@@ -10,9 +10,10 @@ import '../../features/chat/presentation/providers/chat_providers.dart';
 
 /// Adaptive nav scaffold for the customer experience.
 ///
-/// On phones (< 720pt wide), uses the iOS-style bottom NavigationBar (5
-/// tabs: Home / Hot / Scanner / Chat / Profile) and floats the Admin FAB
-/// when applicable.
+/// On phones (< 720pt wide), uses the iOS-style bottom NavigationBar (4
+/// tabs: Home / Scanner / Chat / Profile) and floats the Admin FAB when
+/// applicable. The Hot Trades tab was removed August 2026 — Day/Swing/LEAPS
+/// channels (now TradingView-sourced) all live on the Scanner tab instead.
 ///
 /// On iPad / wide screens, switches to a left-edge NavigationRail with the
 /// same destinations + an Admin destination inline when the user is an
@@ -34,8 +35,6 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   static const List<_NavDestination> _customerTabs = <_NavDestination>[
     _NavDestination(RoutePaths.home, Icons.home_outlined, Icons.home, 'Home'),
-    _NavDestination(RoutePaths.hotTrades, Icons.local_fire_department_outlined,
-        Icons.local_fire_department, 'Hot'),
     _NavDestination(RoutePaths.scanner, Icons.radar_outlined, Icons.radar,
         'Scanner'),
     _NavDestination(RoutePaths.chat, Icons.forum_outlined, Icons.forum, 'Chat'),

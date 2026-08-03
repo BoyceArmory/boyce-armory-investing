@@ -30,26 +30,6 @@ class _DetectorsTabState extends ConsumerState<DetectorsTab> {
   // We list (mode, kind) pairs explicitly so newly-added detectors that
   // haven't backtested yet still appear here for the admin to control.
   static const List<_DetSpec> _knownDetectors = <_DetSpec>[
-    // Day mode
-    _DetSpec('day', 'vwap_reclaim'),
-    _DetSpec('day', 'vwap_rejection'),
-    _DetSpec('day', 'orb_breakout'),
-    _DetSpec('day', 'orb_breakdown'),
-    _DetSpec('day', 'breakout'),
-    _DetSpec('day', 'breakdown'),
-    _DetSpec('day', 'bull_flag'),
-    _DetSpec('day', 'bear_flag'),
-    _DetSpec('day', 'high_volume_move'),
-    _DetSpec('day', 'gap_continuation_long'),
-    _DetSpec('day', 'gap_fade_short'),
-    _DetSpec('day', 'stop_hunt_reversal_long'),
-    _DetSpec('day', 'stop_hunt_reversal_short'),
-    _DetSpec('day', 'hammer_at_support'),
-    _DetSpec('day', 'shooting_star_at_resistance'),
-    _DetSpec('day', 'nr7_compression_long'),
-    _DetSpec('day', 'nr7_compression_short'),
-    _DetSpec('day', 'inside_bar_at_resistance'),
-    _DetSpec('day', 'inside_bar_at_support'),
     // Swing mode
     _DetSpec('swing', 'breakout'),
     _DetSpec('swing', 'breakdown'),
@@ -298,7 +278,7 @@ class _DetectorsTabState extends ConsumerState<DetectorsTab> {
     for (final d in _knownDetectors) {
       (byMode[d.mode] ??= <_DetSpec>[]).add(d);
     }
-    final modes = ['day', 'swing', 'leaps'];
+    final modes = ['swing', 'leaps'];
     return RefreshIndicator(
       color: AppColors.gold,
       backgroundColor: AppColors.graphite,

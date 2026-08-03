@@ -93,7 +93,7 @@ class ScannerInfo extends Equatable {
   factory ScannerInfo.fromJson(Map<String, dynamic> j) {
     final Map<String, dynamic> lr = _obj(j['lastRuns']);
     final Map<String, RunSummary?> typed = {};
-    for (final mode in const ['day', 'swing', 'leaps']) {
+    for (final mode in const ['swing', 'leaps']) {
       final v = lr[mode];
       typed[mode] = (v is Map<String, dynamic>) ? RunSummary.fromJson(v) : null;
     }

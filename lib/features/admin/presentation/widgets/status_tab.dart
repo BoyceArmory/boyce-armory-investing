@@ -821,7 +821,7 @@ class _ScannerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const modes = ['day', 'swing', 'leaps'];
+    const modes = ['swing', 'leaps'];
     final anyRecent = modes.any((m) {
       final r = scanner.lastRuns[m];
       if (r?.startedAt == null) return false;

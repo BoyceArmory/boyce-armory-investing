@@ -56,10 +56,13 @@ extension UserRoleX on UserRole {
       s == 'admin' ? UserRole.admin : UserRole.customer;
 }
 
-// scalp = 0DTE 5-min mode (June 2026, opt-in). Same wire format as the
-// backend; the Flutter UI surfaces it as a separate tab on Scanner so
-// users who haven't opted in via Settings can still scroll past it.
-enum ScannerMode { day, swing, leaps, scalp }
+// Day and Scalp modes were removed (July 2026) when the app went
+// swing+leaps focused on the old custom scanner. 'day' was reintroduced
+// (August 2026) as a TradingView-sourced channel alongside swing/leaps —
+// see backend/src/controllers/webhook.controller.ts. fromWire still maps
+// any stale 'scalp' wire values from old Firestore docs to swing as a safe
+// fallback.
+enum ScannerMode { day, swing, leaps }
 
 extension ScannerModeX on ScannerMode {
   String get wire => name;
@@ -67,13 +70,11 @@ extension ScannerModeX on ScannerMode {
         ScannerMode.day => 'Day',
         ScannerMode.swing => 'Swing',
         ScannerMode.leaps => 'LEAPS',
-        ScannerMode.scalp => 'Scalp',
       };
 
   static ScannerMode fromWire(String? s) => switch (s) {
         'day' => ScannerMode.day,
         'leaps' => ScannerMode.leaps,
-        'scalp' => ScannerMode.scalp,
         _ => ScannerMode.swing,
       };
 }

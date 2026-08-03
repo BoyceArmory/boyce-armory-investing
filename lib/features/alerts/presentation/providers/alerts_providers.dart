@@ -11,18 +11,6 @@ final Provider<AlertsRepository> alertsRepositoryProvider =
   );
 });
 
-/// Recent public trade alerts.
-final StreamProvider<List<TradeAlert>> recentAlertsProvider =
-    StreamProvider<List<TradeAlert>>(
-  (Ref ref) => ref.watch(alertsRepositoryProvider).streamRecent(),
-);
-
-/// Hot trades only.
-final StreamProvider<List<TradeAlert>> hotAlertsProvider =
-    StreamProvider<List<TradeAlert>>(
-  (Ref ref) => ref.watch(alertsRepositoryProvider).streamHot(),
-);
-
 /// Premarket watchlist — populated by the backend premarket-scan job
 /// at 9:25 AM ET each weekday. Empty outside premarket window until the
 /// next morning's run, which is when the EmptyAlertCard explains the

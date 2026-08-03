@@ -343,7 +343,6 @@ class _ModeDropdown extends StatelessWidget {
           style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
           icon: const Icon(Icons.expand_more, color: AppColors.textTertiary, size: 18),
           items: const [
-            DropdownMenuItem(value: 'day', child: Text('Day (intraday)')),
             DropdownMenuItem(value: 'swing', child: Text('Swing (daily)')),
             DropdownMenuItem(value: 'leaps', child: Text('LEAPS (long-term)')),
           ],

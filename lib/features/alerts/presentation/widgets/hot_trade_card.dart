@@ -10,8 +10,6 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/alert_actions_sheet.dart';
 import '../../../../shared/widgets/card_background.dart';
-import '../../../../shared/widgets/position_sizing_chip.dart';
-import '../../../../shared/widgets/scalp_meta_strip.dart';
 import '../../../../shared/widgets/ticker_logo.dart';
 import '../../../scanner/data/setup_education.dart';
 import '../../../scanner/presentation/widgets/alert_action_bar.dart';
@@ -64,18 +62,6 @@ class _HotTradeCardState extends State<HotTradeCard> {
             alignment: Alignment.centerRight,
             child: _HotEyebrow(mode: a.mode, source: a.source),
           ),
-          if (a.mode == ScannerMode.scalp) ...<Widget>[
-            const SizedBox(height: 6),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ScalpMetaStrip(
-                createdAt: a.createdAt,
-                contract: a.contract,
-                symbol: a.symbol,
-                entry: a.entry,
-              ),
-            ),
-          ],
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
@@ -207,7 +193,7 @@ class _AdminPickPill extends StatelessWidget {
   }
 }
 
-/// Small gold pill rendering DAY / SWING / LEAPS so users can scan the Hot
+/// Small gold pill rendering SWING / LEAPS so users can scan the Hot
 /// Trades feed and immediately understand the timeframe of each setup. The
 /// pill is intentionally small + bordered so it doesn't compete with the
 /// HOT TRADE eyebrow next to it.
@@ -219,14 +205,9 @@ class _ModePill extends StatelessWidget {
         ScannerMode.day => 'DAY',
         ScannerMode.swing => 'SWING',
         ScannerMode.leaps => 'LEAPS',
-        ScannerMode.scalp => 'SCALP',
       };
 
-  /// Scalp gets burnt-orange, everything else gold. Scalp is the only
-  /// time-critical mode (10-min TTL), so the colour break tells the eye
-  /// "react now" before the user has read the label.
-  Color get _pillColor =>
-      mode == ScannerMode.scalp ? const Color(0xFFFF7A1A) : AppColors.gold;
+  Color get _pillColor => AppColors.gold;
 
   @override
   Widget build(BuildContext context) {
@@ -419,17 +400,6 @@ class _ExpandedSection extends StatelessWidget {
           ],
           const SizedBox(height: 14),
           _PlanRow(alert: alert),
-          if (alert.contract != null) ...<Widget>[
-            const SizedBox(height: 12),
-            _ContractLine(alert: alert),
-            // Right-aligned to match the card's column layout so the chip
-            // sits below the contract spec without competing with it.
-            const SizedBox(height: 6),
-            Align(
-              alignment: Alignment.centerRight,
-              child: PositionSizingChip(contract: alert.contract),
-            ),
-          ],
           if (alert.notes != null && alert.notes!.trim().isNotEmpty) ...<Widget>[
             const SizedBox(height: 12),
             _ShadowedText(
@@ -523,32 +493,6 @@ class _PlanCell extends StatelessWidget {
             size: 13,
             weight: FontWeight.w800,
             color: color,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ContractLine extends StatelessWidget {
-  const _ContractLine({required this.alert});
-  final TradeAlert alert;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = alert.contract!;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: <Widget>[
-        const Icon(Icons.local_offer_outlined,
-            color: AppColors.gold, size: 14),
-        const SizedBox(width: 6),
-        _ShadowedText(
-          '${c.type.toUpperCase()} ${Formatters.priceCompact(c.strike)} · ${c.expiration}',
-          style: AppTypography.mono(
-            size: 12,
-            weight: FontWeight.w700,
-            color: AppColors.gold,
           ),
         ),
       ],

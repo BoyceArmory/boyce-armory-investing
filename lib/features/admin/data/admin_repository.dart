@@ -225,8 +225,6 @@ class AdminRepository {
       'premarket': true,
       'recap': true,
       'announcement': true,
-      // Scalp stays OFF on reset — it's an opt-in channel.
-      'scalp': false,
       'scannerMinGrade': 'all',
       'scannerModes': {'day': true, 'swing': true, 'leaps': true},
       'quietHours': {'enabled': false, 'startHour': 22, 'endHour': 6},
@@ -305,28 +303,6 @@ class AdminRepository {
   Future<void> setScannerVisibility(String id, String visibility) async {
     await _api.postJson('/api/admin/alerts/scanner/$id/visibility',
         body: {'visibility': visibility});
-  }
-
-  Future<String> promoteScannerToHot(String id) async {
-    final j = await _api.postJson('/api/admin/alerts/scanner/$id/promote');
-    return (j['tradeAlertId'] as String?) ?? '';
-  }
-
-  Future<List<Map<String, dynamic>>> listTradeAlerts({bool onlyHot = false, int limit = 50}) async {
-    final j = await _api.getJson('/api/admin/alerts/trade?limit=$limit&onlyHot=$onlyHot');
-    return ((j['alerts'] as List?) ?? const []).cast<Map<String, dynamic>>();
-  }
-
-  Future<String> createTradeAlert(Map<String, dynamic> body) async {
-    final j = await _api.postJson('/api/admin/alerts/trade', body: body);
-    return (j['id'] as String?) ?? '';
-  }
-
-  Future<void> patchTradeAlert(String id, {bool? isHot, String? visibility}) async {
-    final body = <String, dynamic>{};
-    if (isHot != null) body['isHot'] = isHot;
-    if (visibility != null) body['visibility'] = visibility;
-    await _api.postJson('/api/admin/alerts/trade/$id', body: body);
   }
 
   // ---- Users -----------------------------------------------------------

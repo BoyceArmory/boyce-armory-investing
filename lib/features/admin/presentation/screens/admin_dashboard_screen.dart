@@ -24,7 +24,7 @@ import '../widgets/users_tab.dart';
 ///
 ///   Status   — what's running (auto-refresh 30s).
 ///   Scanner  — manual trigger, run history, kill switches.
-///   Alerts   — scanner + trade alert management, promote to Hot, compose.
+///   Alerts   — scanner alert visibility management.
 ///   Users    — list + role/tier/disabled controls.
 ///   Trades   — active (with close) + closed.
 ///   Audit    — admin_logs feed.

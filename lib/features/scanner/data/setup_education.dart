@@ -53,28 +53,6 @@ class SetupEducation {
             'Losing a key moving average from above is the early tell that '
             'profit-taking is winning. Best fades happen at confluence — '
             'overbought RSI + at a prior resistance level + bearish candle.',
-    'vwap_reclaim':
-        'Intraday VWAP is where institutional algos benchmark their fills. '
-            'Price that dipped below VWAP and reclaims it on volume is '
-            'showing that big money sees current price as cheap. The '
-            'reclaim is the entry; VWAP itself is the stop.',
-    'vwap_rejection':
-        'Mirror of reclaim — price rallying into VWAP from below, then '
-            'rejecting it on volume. Institutions are selling into the bounce '
-            'because the day is structurally weak. Short the rejection; VWAP '
-            'is the invalidation level above.',
-
-    // -------------------- Opening-range / day setups --------------------
-    'orb_breakout':
-        'The Opening Range Breakout: the first 30 minutes (09:30–10:00 ET) '
-            'sets a price range. A break above that high — with volume that '
-            'beats the prior 20-minute average — is the cleanest day-trading '
-            'long. Best on days when SPY is also pushing higher.',
-    'orb_breakdown':
-        'Same logic as ORB breakout, on the short side. A clean break below '
-            'the opening-range low on volume tells you sellers won the first '
-            'thirty minutes and the day will trend down. Tight stops above '
-            'the ORL.',
 
     // -------------------- Reversal family (Sprint 2) --------------------
     'oversold_reversal_long':
@@ -109,17 +87,7 @@ class SetupEducation {
         'Mirror near the 20-bar high. Sellers overwhelmed the prior day\'s '
             'buyers in a single decisive candle. Often marks a swing top.',
 
-    // -------------------- Day-scanner additions (Sprint 5) --------------------
-    'gap_continuation_long':
-        'A gap-up of 1.5%+ that\'s holding its open price 30+ minutes into '
-            'the session, on above-average volume. The thesis: gaps that '
-            'don\'t fill in the first half-hour usually run further into '
-            'the morning. Stop just below the open — if that breaks the '
-            'gap is filling and the trade is wrong.',
-    'gap_fade_short':
-        'Mirror — a gap-down of 1.5%+ that\'s not recovering. Volume '
-            'confirms sellers are still in control. Short the failure of '
-            'the open; stop just above it.',
+    // -------------------- Sprint 5 additions (shared with swing) --------------------
     'stop_hunt_reversal_long':
         'A liquidity sweep: price wicked below the 20-bar low (running '
             'stop-loss orders), then closed back above on volume. Whoever '
@@ -189,32 +157,6 @@ class SetupEducation {
         'This setup was hand-picked by the desk because the combination of '
             'price action, volume, and market context lines up with how we '
             'trade.',
-
-    // -------------------- Scalp (0DTE 5-min) --------------------
-    'vwap_reclaim_scalp':
-        'VWAP reclaim on a 1-minute bar with a 2.5x+ volume burst. VWAP is '
-            'where most of the day\'s shares have transacted — reclaiming it '
-            'from below on heavy volume tells you the buyer side just '
-            'overwhelmed the seller side in real time. Tight stop just '
-            'below VWAP, fast 0.5R / 1R / 1.5R targets because the alert '
-            'lives only 10 minutes before theta wins.',
-    'vwap_rejection_scalp':
-        'Inverse of the reclaim — price tagged VWAP from above, got '
-            'rejected on volume, and is rolling back over. Sellers are '
-            'defending VWAP as resistance. Same compressed risk/reward as '
-            'the reclaim setup; same 10-minute alert window.',
-    'failed_breakout_fade':
-        'Price poked above a recent high on a 1-minute bar but the trigger '
-            'bar closed back UNDER the high. That failure is structural '
-            'exhaustion — the buyers who tried to push above the level ran '
-            'out of ammo, and they\'re the ones who become forced sellers '
-            'when the move fades. Fade the failure with a tight stop above '
-            'the failed high.',
-    'failed_breakdown_fade':
-        'Mirror of the failed breakout fade. Price wicked below a recent '
-            'low and the trigger bar closed back above. The shorts who '
-            'pressed the breakdown are now trapped and the squeeze back is '
-            'the trade. Tight stop below the wick.',
   };
 
   /// Returns an educational paragraph for [kind]. Falls back to a generic

@@ -48,33 +48,9 @@ class ScannerRepository {
         .snapshots()
         .map(_mapSnapshot)
         .map((List<ScannerAlert> alerts) {
-      // Today's session start in the user's local timezone. We treat a day
-      // as "fresh" if it landed after this morning's market open. This
-      // belt-and-suspenders alongside the backend daily-reset job — even
-      // if the reset write fails for a doc, the UI still won't show
-      // yesterday's day-mode card today.
-      final DateTime now = DateTime.now();
-      final DateTime todayStart = DateTime(now.year, now.month, now.day);
-
       final List<ScannerAlert> visible = alerts.where((ScannerAlert a) {
         // Filter out anything the decay/reset jobs have invalidated.
-        if (a.stillValid == false) return false;
-
-        // DAY MODE HARDENING (relaxed June 2026):
-        // - Drop yesterday's day cards (intraday-only; not actionable
-        //   the next morning even if invalidation missed them).
-        // - The earlier "drop if currentPrice == null" check was too
-        //   aggressive — it hid every published day alert during the
-        //   minutes between Firestore write and snapshot enrichment.
-        //   New rule: only hide for missing currentPrice if the alert is
-        //   ALSO more than 1 hour old. Fresh alerts pass through even if
-        //   the snapshot hasn't fully landed.
-        if (a.mode == ScannerMode.day) {
-          if (a.createdAt.isBefore(todayStart)) return false;
-          final Duration age = DateTime.now().difference(a.createdAt);
-          if (age.inMinutes > 60 && a.currentPrice == null) return false;
-        }
-        return true;
+        return a.stillValid != false;
       }).toList();
 
       // DEDUP BY (mode, symbol) — defense-in-depth. The backend writes

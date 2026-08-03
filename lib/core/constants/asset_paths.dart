@@ -61,7 +61,9 @@ class AssetPaths {
   static const String learnPositionSizing = '${learnDir}postion_sizing.png';
 
   // --- Quick-action button artwork ---
-  static const String btnHotTrades = 'assets/buttons/hot_trades_button.png';
+  // btnHotTrades removed Aug 2026 along with the Hot Trades tab/screen.
+  // The asset file (assets/buttons/hot_trades_button.png) is unused now;
+  // safe to delete it from disk and pubspec.yaml's assets list.
   static const String btnScanner = 'assets/buttons/scanner_button.png';
   static const String btnChat = 'assets/buttons/chat_button.png';
   static const String btnLearn = 'assets/buttons/learn_button.png';
