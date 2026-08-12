@@ -10,8 +10,12 @@
 # If you bump Flutter or Firebase versions and pod install starts complaining
 # about minimum iOS, raise the platform line below.
 
-# Firebase iOS SDK requires iOS 13+.
-platform :ios, '13.0'
+# Aug 2026: bumped 13.0 -> 15.0. CocoaPods started failing on Codemagic with
+# "CocoaPods could not find compatible versions for pod 'Flutter'... required
+# a higher minimum deployment target" -- the Flutter engine pod itself (not
+# Firebase) now requires iOS 15+ under recent Xcode/Flutter stable releases.
+# Firebase iOS SDK requires iOS 13+, so 15.0 clears both floors.
+platform :ios, '15.0'
 
 # Silence CocoaPods analytics network calls during build.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -55,9 +59,10 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
 
     target.build_configurations.each do |config|
-      # Force iOS deployment target to 13.0 on all pods so transitive deps don't
-      # downgrade us (some older pods default to 11.0 / 12.0 and break Firebase).
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      # Force iOS deployment target to 15.0 on all pods so transitive deps don't
+      # downgrade us (some older pods default to 11.0 / 12.0 / 13.0 and break
+      # against the Flutter engine pod's actual floor -- see note above).
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
 
       # Xcode 15 defaults ENABLE_USER_SCRIPT_SANDBOXING to YES, which blocks
       # the Flutter+CocoaPods integration script from writing build artifacts
