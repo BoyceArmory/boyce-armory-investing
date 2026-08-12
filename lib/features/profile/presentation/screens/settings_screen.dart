@@ -1032,13 +1032,13 @@ class _RiskDisclaimerSection extends StatelessWidget {
   const _RiskDisclaimerSection();
   @override
   Widget build(BuildContext context) {
-    return _Card(
+    return const _Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            const Text(
+            Text(
               'Educational content only — not financial advice.',
               style: TextStyle(
                 color: AppColors.gold,
@@ -1047,27 +1047,15 @@ class _RiskDisclaimerSection extends StatelessWidget {
                 letterSpacing: 0.4,
               ),
             ),
-            const SizedBox(height: 10),
-            const Text(
-              'Boyce Armory publishes options trading setups and education for informational purposes only. Nothing in this app is personalized financial advice, a recommendation to buy or sell any security, or a guarantee of profit. Options trading is high-risk and can result in the total loss of capital — including more than you invest in certain strategies.\n\n'
-              'You alone are responsible for every trade you place. Past performance, scanner backtest stats, and the desk track record shown in this app are not a promise of future results. Before trading options you should read the Characteristics and Risks of Standardized Options (the "options disclosure document") published by the OCC, and consult a licensed financial professional if you are unsure whether options are appropriate for your situation.\n\n'
+            SizedBox(height: 10),
+            Text(
+              'Boyce Armory publishes stock trade call-outs and education for informational purposes only. Nothing in this app is personalized financial advice, a recommendation to buy or sell any security, or a guarantee of profit. Trading stocks is inherently risky and can result in the loss of your full investment — short positions and any use of margin can result in losses beyond your original investment.\n\n'
+              'You alone are responsible for every trade you place. Past performance, scanner backtest stats, and the desk track record shown in this app are not a promise of future results. Consult a licensed financial professional if you are unsure whether a given trade or strategy — including short selling or the use of margin — is appropriate for your situation.\n\n'
               'By using Boyce Armory you confirm that you have read, understood, and agreed to our Terms of Service.',
               style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 13,
                 height: 1.45,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextButton.icon(
-              onPressed: () => launchUrl(Uri.parse(
-                  'https://www.theocc.com/company-information/documents-and-archives/options-disclosure-document')),
-              icon: const Icon(Icons.open_in_new,
-                  color: AppColors.gold, size: 16),
-              label: const Text(
-                'Read OCC options disclosure document',
-                style: TextStyle(
-                    color: AppColors.gold, fontWeight: FontWeight.w700),
               ),
             ),
           ],

@@ -1396,7 +1396,7 @@ class _DisclaimerCard extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            'Past performance does not guarantee future results. Numbers shown reflect closed trades only. Boyce Armory is not a registered investment advisor; this is educational content, not personalized investment advice. Options trading involves substantial risk of loss. You can lose more than you invest.',
+            'Past performance does not guarantee future results. Numbers shown reflect closed trades only. Boyce Armory is not a registered investment advisor; this is educational content, not personalized investment advice. Trading stocks involves risk of loss, including loss of your full investment; short positions and margin use can result in losses beyond your original investment.',
             style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 11,

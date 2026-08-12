@@ -141,11 +141,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       child: _DisclosureBox(
                         title: 'Trading risk acknowledgement',
                         body: 'Boyce Armory provides educational content, market scans, and '
-                            'trade-idea signals. We are not a registered investment advisor, '
+                            'stock trade call-outs. We are not a registered investment advisor, '
                             'broker-dealer, or financial planner. Nothing here is personalized '
                             'investment advice.\n\n'
-                            'Options trading involves substantial risk of loss and is not suitable '
-                            'for every investor. You can lose more than you invest. Past performance '
+                            'Trading stocks involves risk of loss, including the risk of losing '
+                            'your full investment. Short positions and any use of margin can '
+                            'result in losses beyond your original investment. Past performance '
                             '— actual or simulated — does not guarantee future results. All trading '
                             'decisions are your own. Consult a licensed financial professional before '
                             'acting on any idea you see in this app.',
