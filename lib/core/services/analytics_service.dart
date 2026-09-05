@@ -1,5 +1,7 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Centralized analytics for product decisions.
@@ -13,13 +15,35 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class AnalyticsService {
   AnalyticsService._();
 
-  static final FirebaseAnalytics _fa = FirebaseAnalytics.instance;
+  static FirebaseAnalytics get _fa => FirebaseAnalytics.instance;
+
+  static NavigatorObserver? _observer;
 
   /// Observer instance for go_router / Navigator screen tracking.
-  static FirebaseAnalyticsObserver observer =
-      FirebaseAnalyticsObserver(analytics: _fa);
+  ///
+  /// Sep 2026 fix: this used to be a plain `static final` field initialized
+  /// straight to `FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.
+  /// instance)`. `FirebaseAnalytics.instance` calls `Firebase.app()`
+  /// internally, which throws if `Firebase.initializeApp()` hasn't
+  /// resolved yet. Since `appRouterProvider` reads this field as soon as
+  /// `BoyceArmoryApp.build()` runs (see app.dart, first line of build),
+  /// that throw took down the entire app the moment Firebase wasn't ready
+  /// — including in the widget-test smoke test, which the test file's own
+  /// header comment says was deliberately written to NOT require Firebase.
+  /// Guarding on `Firebase.apps.isEmpty` and falling back to a no-op
+  /// observer fixes both the test and the (admittedly rarer) production
+  /// case of a frame rendering before Firebase.initializeApp() resolves.
+  static NavigatorObserver get observer {
+    if (_observer != null) return _observer!;
+    if (Firebase.apps.isEmpty) {
+      return _NoopNavigatorObserver();
+    }
+    final NavigatorObserver o = FirebaseAnalyticsObserver(analytics: _fa);
+    _observer = o;
+    return o;
+  }
 
-  static bool get _enabled => !kDebugMode;
+  static bool get _enabled => !kDebugMode && Firebase.apps.isNotEmpty;
 
   // ---- User identity ----
 
@@ -142,3 +166,9 @@ class AnalyticsService {
 /// they prefer dependency injection over the static helper.
 final Provider<AnalyticsService> analyticsProvider =
     Provider<AnalyticsService>((Ref ref) => AnalyticsService._());
+
+/// Does nothing. Used by [AnalyticsService.observer] before Firebase has
+/// initialized (widget tests, or a very early frame in production) so
+/// go_router always has a valid observer to attach without touching
+/// Firebase at all.
+class _NoopNavigatorObserver extends NavigatorObserver {}
