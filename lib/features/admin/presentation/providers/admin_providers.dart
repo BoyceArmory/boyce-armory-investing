@@ -43,6 +43,16 @@ final StreamProvider<SystemStatus> systemStatusStreamProvider =
   return ctrl.stream;
 });
 
+/// Performance dashboard URL (Analytics tab). Fetched once per app session
+/// — autoDispose keeps it from going stale forever if the token is ever
+/// rotated on the backend, since re-entering the tab after navigating away
+/// re-fetches.
+final AutoDisposeFutureProvider<String> dashboardUrlProvider =
+    FutureProvider.autoDispose<String>((Ref ref) {
+  final repo = ref.watch(adminRepositoryProvider);
+  return repo.fetchDashboardUrl();
+});
+
 /// Scanner runs feed (auto-refresh every 60s).
 final StreamProvider<List<Map<String, dynamic>>> scannerRunsStreamProvider =
     StreamProvider<List<Map<String, dynamic>>>((Ref ref) {

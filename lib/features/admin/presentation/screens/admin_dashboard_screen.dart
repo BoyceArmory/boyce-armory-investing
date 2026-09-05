@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../providers/admin_providers.dart';
 import '../widgets/alerts_tab.dart';
+import '../widgets/analytics_tab.dart';
 import '../widgets/audit_tab.dart';
 import '../widgets/backtest_tab.dart';
 import '../widgets/cooldowns_tab.dart';
@@ -22,8 +23,14 @@ import '../widgets/users_tab.dart';
 
 /// Admin dashboard — full ops control center, all slices live.
 ///
-///   Status   — what's running (auto-refresh 30s).
-///   Scanner  — manual trigger, run history, kill switches.
+///   Status    — what's running (auto-refresh 30s).
+///   Analytics — opens the web performance dashboard (equity curve,
+///               strategy/mode/symbol/regime/session breakdowns, score
+///               calibration, auto-generated insights) in an in-app
+///               browser view. Lives on the backend, not natively, so it
+///               can keep evolving without an app release — see
+///               analytics_tab.dart.
+///   Scanner   — manual trigger, run history, kill switches.
 ///   Alerts   — scanner alert visibility management.
 ///   Users    — list + role/tier/disabled controls.
 ///   Trades   — active (with close) + closed.
@@ -58,6 +65,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
 
   static const List<_TabEntry> _allTabs = <_TabEntry>[
     _TabEntry(_TabSpec('Status', Icons.monitor_heart_outlined), StatusTab()),
+    _TabEntry(_TabSpec('Analytics', Icons.query_stats), AnalyticsTab()),
     _TabEntry(_TabSpec('Scanner', Icons.radar), ScannerOpsTab()),
     _TabEntry(_TabSpec('Alerts', Icons.campaign_outlined), AlertsTab()),
     _TabEntry(_TabSpec('Jobs', Icons.flash_on), JobsTab()),

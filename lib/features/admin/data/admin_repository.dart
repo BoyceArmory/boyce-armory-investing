@@ -29,6 +29,23 @@ class AdminRepository {
     await _api.postJson('/api/admin/system/flags', body: {'pushScannerPromotes': value});
   }
 
+  // ---- Performance dashboard (Analytics tab) ---------------------------
+
+  /// Fetches the ready-to-open performance dashboard URL. The dashboard
+  /// itself lives behind a separate secret-URL token (DASHBOARD_TOKEN,
+  /// distinct from the admin API key) — this call retrieves the full URL
+  /// through the already-authenticated admin session so the token never
+  /// has to be hardcoded into the app binary. See admin.controller.ts
+  /// getDashboardUrl() for the full rationale.
+  Future<String> fetchDashboardUrl() async {
+    final j = await _api.getJson('/api/admin/dashboard-url');
+    final url = j['url'] as String?;
+    if (url == null || url.isEmpty) {
+      throw Exception('Dashboard URL missing from response');
+    }
+    return url;
+  }
+
   // ---- Push diagnostics ------------------------------------------------
   // Used by Settings → Admin → "Send test push" to verify the entire push
   // pipeline (FCM token → APNs/FCM dispatch → device display) is working.
