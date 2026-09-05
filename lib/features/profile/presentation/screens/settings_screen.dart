@@ -42,6 +42,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _modeDay = true;
   bool _modeSwing = true;
   bool _modeLeaps = true;
+  // Per-strategy toggles (Sep 2026) — trend-pullback / mean-reversion /
+  // double-breakout carry very different validated conviction levels (see
+  // tradingview/NEXT_STEPS.md). Wire key matches notificationPrefs.
+  // scannerStrategies.{key} on the backend (notification-queue.service.ts).
+  bool _stratTrendPullback = true;
+  bool _stratMeanReversion = true;
+  bool _stratDoubleBreakout = true;
   bool _quietEnabled = false;
   int _quietStart = 22;
   int _quietEnd = 6;
@@ -67,6 +74,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final prefs = await repo.fetchMyNotificationPrefs();
       if (!mounted) return;
       final modes = (prefs['scannerModes'] as Map?) ?? const {};
+      final strategies = (prefs['scannerStrategies'] as Map?) ?? const {};
       final quiet = (prefs['quietHours'] as Map?) ?? const {};
       setState(() {
         _notifMaster = (prefs['master'] as bool?) ?? true;
@@ -80,6 +88,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _modeDay = (modes['day'] as bool?) ?? true;
         _modeSwing = (modes['swing'] as bool?) ?? true;
         _modeLeaps = (modes['leaps'] as bool?) ?? true;
+        _stratTrendPullback =
+            (strategies['trend_pullback'] as bool?) ?? true;
+        _stratMeanReversion =
+            (strategies['mean_reversion'] as bool?) ?? true;
+        _stratDoubleBreakout =
+            (strategies['double_breakout'] as bool?) ?? true;
         _quietEnabled = (quiet['enabled'] as bool?) ?? false;
         _quietStart = (quiet['startHour'] as num?)?.toInt() ?? 22;
         _quietEnd = (quiet['endHour'] as num?)?.toInt() ?? 6;
@@ -306,6 +320,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             modeDay: _modeDay,
             modeSwing: _modeSwing,
             modeLeaps: _modeLeaps,
+            stratTrendPullback: _stratTrendPullback,
+            stratMeanReversion: _stratMeanReversion,
+            stratDoubleBreakout: _stratDoubleBreakout,
             quietEnabled: _quietEnabled,
             quietStart: _quietStart,
             quietEnd: _quietEnd,
@@ -321,6 +338,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               });
               _saveAdvanced({
                 'scannerModes': {mode: v}
+              });
+            },
+            onStrategy: (strategy, v) {
+              setState(() {
+                if (strategy == 'trend_pullback') _stratTrendPullback = v;
+                if (strategy == 'mean_reversion') _stratMeanReversion = v;
+                if (strategy == 'double_breakout') _stratDoubleBreakout = v;
+              });
+              _saveAdvanced({
+                'scannerStrategies': {strategy: v}
               });
             },
             onQuietEnabled: (v) {
@@ -1933,11 +1960,15 @@ class _AdvancedNotificationsSection extends StatelessWidget {
     required this.modeDay,
     required this.modeSwing,
     required this.modeLeaps,
+    required this.stratTrendPullback,
+    required this.stratMeanReversion,
+    required this.stratDoubleBreakout,
     required this.quietEnabled,
     required this.quietStart,
     required this.quietEnd,
     required this.onMinGrade,
     required this.onMode,
+    required this.onStrategy,
     required this.onQuietEnabled,
     required this.onQuietStart,
     required this.onQuietEnd,
@@ -1949,11 +1980,15 @@ class _AdvancedNotificationsSection extends StatelessWidget {
   final bool modeDay;
   final bool modeSwing;
   final bool modeLeaps;
+  final bool stratTrendPullback;
+  final bool stratMeanReversion;
+  final bool stratDoubleBreakout;
   final bool quietEnabled;
   final int quietStart;
   final int quietEnd;
   final ValueChanged<String> onMinGrade;
   final void Function(String mode, bool value) onMode;
+  final void Function(String strategy, bool value) onStrategy;
   final ValueChanged<bool> onQuietEnabled;
   final ValueChanged<int> onQuietStart;
   final ValueChanged<int> onQuietEnd;
@@ -2074,6 +2109,53 @@ class _AdvancedNotificationsSection extends StatelessWidget {
             subtitle: 'Long-dated weekly thesis trades',
             value: modeLeaps && scannerOn,
             onChanged: scannerOn ? (v) => onMode('leaps', v) : null,
+          ),
+          const Divider(color: AppColors.steel, height: 1),
+          // ---- Per-strategy toggles (Sep 2026) ---------------------------
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Text(
+              'STRATEGIES',
+              style: TextStyle(
+                color: scannerOn ? AppColors.gold : AppColors.textTertiary,
+                fontSize: 10,
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Text(
+              'Which of the three scanner strategies can push to your phone.',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          _Tile(
+            title: 'Trend Pullback',
+            subtitle: 'The most-validated strategy — pullback continuation',
+            value: stratTrendPullback && scannerOn,
+            onChanged:
+                scannerOn ? (v) => onStrategy('trend_pullback', v) : null,
+          ),
+          const Divider(color: AppColors.steel, height: 1),
+          _Tile(
+            title: 'Mean Reversion',
+            subtitle: 'Narrow edge on range-bound sector ETFs only',
+            value: stratMeanReversion && scannerOn,
+            onChanged:
+                scannerOn ? (v) => onStrategy('mean_reversion', v) : null,
+          ),
+          const Divider(color: AppColors.steel, height: 1),
+          _Tile(
+            title: 'Double Breakout',
+            subtitle: 'Curated ticker list — lower-conviction than the others',
+            value: stratDoubleBreakout && scannerOn,
+            onChanged:
+                scannerOn ? (v) => onStrategy('double_breakout', v) : null,
           ),
           const Divider(color: AppColors.steel, height: 1),
           // ---- Quiet hours ----------------------------------------------

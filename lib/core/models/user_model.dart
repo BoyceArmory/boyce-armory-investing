@@ -6,6 +6,7 @@ class AppUser extends Equatable {
   const AppUser({
     required this.uid,
     required this.role,
+    this.tier = UserTier.free,
     this.email,
     this.displayName,
     this.photoUrl,
@@ -15,6 +16,7 @@ class AppUser extends Equatable {
 
   final String uid;
   final UserRole role;
+  final UserTier tier;
   final String? email;
   final String? displayName;
   final String? photoUrl;
@@ -23,10 +25,16 @@ class AppUser extends Equatable {
 
   bool get isAdmin => role == UserRole.admin;
 
+  /// True for admins and premium customers — the audience for Scanner,
+  /// ADMIN BUYS, and Learn. Admins always pass regardless of tier so the
+  /// team never locks itself out of its own premium surfaces.
+  bool get hasPremiumAccess => isAdmin || tier == UserTier.premium;
+
   factory AppUser.fromFirestore(String uid, Map<String, dynamic> data) {
     return AppUser(
       uid: uid,
       role: UserRoleX.fromWire(data['role'] as String?),
+      tier: UserTierX.fromWire(data['tier'] as String?),
       email: data['email'] as String?,
       displayName: data['displayName'] as String?,
       photoUrl: data['photoUrl'] as String?,
@@ -38,6 +46,7 @@ class AppUser extends Equatable {
   Map<String, dynamic> toFirestore() => {
         'uid': uid,
         'role': role.wire,
+        'tier': tier.wire,
         if (email != null) 'email': email,
         if (displayName != null) 'displayName': displayName,
         if (photoUrl != null) 'photoUrl': photoUrl,
@@ -47,6 +56,7 @@ class AppUser extends Equatable {
 
   AppUser copyWith({
     UserRole? role,
+    UserTier? tier,
     String? email,
     String? displayName,
     String? photoUrl,
@@ -54,6 +64,7 @@ class AppUser extends Equatable {
     return AppUser(
       uid: uid,
       role: role ?? this.role,
+      tier: tier ?? this.tier,
       email: email ?? this.email,
       displayName: displayName ?? this.displayName,
       photoUrl: photoUrl ?? this.photoUrl,
@@ -64,7 +75,7 @@ class AppUser extends Equatable {
 
   @override
   List<Object?> get props =>
-      [uid, role, email, displayName, photoUrl, createdAt, updatedAt];
+      [uid, role, tier, email, displayName, photoUrl, createdAt, updatedAt];
 }
 
 DateTime? _parseDate(Object? raw) {

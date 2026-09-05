@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/premium_card.dart';
+import '../../../../shared/widgets/premium_gate.dart';
 import '../../../../shared/widgets/section_header.dart';
 import '../../data/lesson_models.dart';
 import '../providers/lesson_providers.dart';
@@ -54,7 +55,12 @@ class _LessonsScreenState extends ConsumerState<LessonsScreen> {
     return Scaffold(
       backgroundColor: AppColors.obsidian,
       body: SafeArea(
-        child: ListView(
+        child: PremiumGate(
+          featureName: 'Learn',
+          description:
+              'The Academy — trade card anatomy, setup playbooks, and '
+              'risk lessons — is a premium subscriber benefit.',
+          child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           children: <Widget>[
             const SectionHeader(eyebrow: 'Education', title: 'Academy'),
@@ -101,6 +107,7 @@ class _LessonsScreenState extends ConsumerState<LessonsScreen> {
                 );
               }),
           ],
+          ),
         ),
       ),
     );

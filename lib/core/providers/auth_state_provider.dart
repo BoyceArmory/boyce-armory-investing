@@ -48,6 +48,16 @@ final Provider<bool> isAdminProvider = Provider<bool>(
   (Ref ref) => ref.watch(appUserProvider).asData?.value?.isAdmin ?? false,
 );
 
+/// True for admins and premium-tier customers — the audience for Scanner,
+/// ADMIN BUYS, and Learn (Sep 2026). Mirrors firestore.rules' isPremium(),
+/// which is the actual enforcement layer; this just drives the Flutter
+/// PremiumGate UI so free-tier users see an upsell instead of a raw
+/// permission-denied error.
+final Provider<bool> hasPremiumAccessProvider = Provider<bool>(
+  (Ref ref) =>
+      ref.watch(appUserProvider).asData?.value?.hasPremiumAccess ?? false,
+);
+
 /// Safety ceiling: resolves true 1.5s after first read so the splash can
 /// never get pinned forever if Firebase is slow or stalled.
 final FutureProvider<bool> _bootstrapTimedOutProvider = FutureProvider<bool>(

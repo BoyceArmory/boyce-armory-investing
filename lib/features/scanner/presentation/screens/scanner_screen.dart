@@ -10,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/animations/fade_slide_in.dart';
 import '../../../../shared/widgets/empty_alert_card.dart';
 import '../../../../shared/widgets/error_state.dart';
+import '../../../../shared/widgets/premium_gate.dart';
 import '../../../../shared/widgets/responsive_container.dart';
 import '../../../../shared/widgets/snooze_indicator_strip.dart';
 import '../providers/scanner_providers.dart';
@@ -154,7 +155,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
             _ModeTabs(controller: _tabs, labels: _tabLabels),
             const SizedBox(height: 8),
             Expanded(
-              child: RefreshIndicator(
+              child: PremiumGate(
+                featureName: 'Scanner',
+                description:
+                    'Live Day/Swing/LEAPS trade call-outs are a premium '
+                    'subscriber benefit. Upgrade to unlock the full scanner.',
+                child: RefreshIndicator(
                 color: AppColors.gold,
                 backgroundColor: AppColors.graphite,
                 onRefresh: () async {
@@ -228,6 +234,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                       },
                     );
                   },
+                ),
                 ),
               ),
             ),

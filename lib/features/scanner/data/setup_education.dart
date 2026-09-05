@@ -132,6 +132,54 @@ class SetupEducation {
             'with price under the 20EMA. The break of yesterday\'s low '
             'triggers; stop above the inside bar high.',
 
+    // -------------------- TradingView pipeline (live, Aug/Sep 2026) --------
+    // These three power every current live alert (Day/Swing/LEAPS channels
+    // via boyce_armory_trend_pullback.pine, boyce_armory_mean_reversion.pine,
+    // and boyce_armory_double_breakout.pine). Added Sep 2026 — before this,
+    // every TradingView-sourced alert fell through to the generic fallback
+    // paragraph below because none of these kinds had an entry here.
+    'pullback_to_ema_long':
+        'Price is in an established uptrend (fast EMA above slow EMA, both '
+            'sloping up) and just pulled back to touch the fast EMA before '
+            'closing back above it. You\'re buying the dip inside a trend '
+            'that\'s already proven itself, not guessing at a bottom. Stop '
+            'sits below the pullback low — if that gives way, the trend '
+            'leg is over.',
+    'pullback_to_ema_short':
+        'Mirror in a downtrend: price rallies up to tag the fast EMA from '
+            'below, then closes back under it. You\'re selling the bounce '
+            'inside a trend that\'s already established, not calling a top. '
+            'Stop sits above the pullback high.',
+    'mean_reversion_long':
+        'Price closed below the lower band of a mean-reversion channel — '
+            'stretched further from its average than it normally travels — '
+            'while a regime filter (ADX) confirms the stock is range-bound '
+            'rather than trending, so "stretched" actually means "likely to '
+            'snap back" instead of "starting a new trend." Target is a '
+            'reversion back toward the channel\'s basis (mean); stop sits '
+            'below the recent low in case the range breaks instead of '
+            'holding.',
+    'mean_reversion_short':
+        'Mirror at the upper band: price closed above the top of the '
+            'channel while the ADX regime filter confirms range-bound '
+            'conditions, so the stretch is faded back toward the mean '
+            'rather than chased as a breakout. Stop sits above the recent '
+            'high.',
+    'double_breakout_long':
+        'The "X2 breakout" pattern: price first wicks above the prior '
+            'day\'s high and fails (closes back inside), bases in a tight '
+            'band near that level for a few bars, then a SECOND close '
+            'breaks back above it on above-average volume — the '
+            'confirmation step, not the first level cross, is the actual '
+            'edge. A daily trend filter only allows this long when price '
+            'is above the daily trend EMA. Managed with an EMA trail exit '
+            '(two consecutive closes past it) rather than a fixed target.',
+    'double_breakout_short':
+        'Mirror off the prior day\'s low: a failed breakdown, a base near '
+            'the level, then a confirmed second close below it on volume — '
+            'only taken when price is under the daily trend EMA. Same '
+            'two-close EMA trail exit as the long side.',
+
     // -------------------- Generic fallbacks --------------------
     'support_bounce':
         'Buyers tend to defend price levels they have defended before. '

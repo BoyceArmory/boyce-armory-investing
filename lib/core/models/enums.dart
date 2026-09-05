@@ -56,6 +56,44 @@ extension UserRoleX on UserRole {
       s == 'admin' ? UserRole.admin : UserRole.customer;
 }
 
+// Premium-tier gate (Sep 2026). Scanner and the ADMIN BUYS chat room are
+// premium-only; Learn (Academy) is gated the same way in the UI. Backend
+// enforcement lives in firestore.rules (isPremium()) — this enum just
+// mirrors the wire values so the client can match the same logic for UX
+// (showing a PremiumGate upsell instead of a raw permission error).
+enum UserTier { free, premium }
+
+extension UserTierX on UserTier {
+  String get wire => name;
+  static UserTier fromWire(String? s) =>
+      s == 'premium' ? UserTier.premium : UserTier.free;
+}
+
+// Strategy tag on TradingView-sourced scanner alerts (Sep 2026). Lets
+// Settings offer per-strategy push toggles alongside the existing
+// per-mode (day/swing/leaps) ones — see notification-queue.service.ts.
+enum AlertStrategy { trendPullback, meanReversion, doubleBreakout }
+
+extension AlertStrategyX on AlertStrategy {
+  String get wire => switch (this) {
+        AlertStrategy.trendPullback => 'trend_pullback',
+        AlertStrategy.meanReversion => 'mean_reversion',
+        AlertStrategy.doubleBreakout => 'double_breakout',
+      };
+
+  String get label => switch (this) {
+        AlertStrategy.trendPullback => 'Trend Pullback',
+        AlertStrategy.meanReversion => 'Mean Reversion',
+        AlertStrategy.doubleBreakout => 'Double Breakout',
+      };
+
+  static AlertStrategy fromWire(String? s) => switch (s) {
+        'mean_reversion' => AlertStrategy.meanReversion,
+        'double_breakout' => AlertStrategy.doubleBreakout,
+        _ => AlertStrategy.trendPullback,
+      };
+}
+
 // Day and Scalp modes were removed (July 2026) when the app went
 // swing+leaps focused on the old custom scanner. 'day' was reintroduced
 // (August 2026) as a TradingView-sourced channel alongside swing/leaps —

@@ -14,6 +14,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/error_state.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
+import '../../../../shared/widgets/premium_gate.dart';
 import '../../../../shared/widgets/screen_header.dart';
 import '../../../admin/presentation/providers/admin_providers.dart';
 import '../../data/chat_models.dart';
@@ -672,6 +673,36 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
   Widget build(BuildContext context) {
     final ChatRoomDef? room = _resolveRoom();
     final String title = room?.title ?? 'Chat';
+
+    // Sep 2026: ADMIN BUYS is premium-only (see firestore.rules
+    // isPremium()). Gate before ever subscribing to chatMessagesProvider so
+    // a free-tier user's client doesn't attempt the now-restricted
+    // Firestore read at all — they'd just get permission-denied instead of
+    // this friendly lock screen.
+    final bool isAdminBuysLocked = widget.roomId == 'admin_buys' &&
+        !ref.watch(hasPremiumAccessProvider);
+    if (isAdminBuysLocked) {
+      return Scaffold(
+        backgroundColor: AppColors.obsidian,
+        appBar: AppBar(
+          title: Text(title),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.canPop()
+                ? context.pop()
+                : context.go(RoutePaths.chat),
+          ),
+        ),
+        body: PremiumGate(
+          featureName: 'ADMIN BUYS',
+          description:
+              'Live trade call-out screenshots from the desk are a '
+              'premium subscriber benefit.',
+          child: const SizedBox.shrink(),
+        ),
+      );
+    }
+
     final AsyncValue<List<ChatMessage>> async =
         ref.watch(chatMessagesProvider(widget.roomId));
     final User? fbUser = ref.watch(currentFirebaseUserProvider);

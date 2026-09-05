@@ -1,3 +1,8 @@
+// NOTE: this is the copy Firebase CLI actually deploys for this project. It's
+// intentionally mirrored at backend/firestore.rules so backend devs can see
+// the rules without digging into the Flutter app tree. Nothing enforces they
+// stay in sync — after editing either copy, run `npm run check:firestore-rules`
+// from backend/ to diff them, and copy your change into the other file.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -10,6 +15,17 @@ service cloud.firestore {
     }
     function isAdmin() {
       return isSignedIn() && userDoc().data.role == 'admin';
+    }
+    // Premium-tier gate (Sep 2026). `tier` defaults to absent/'free' for
+    // every user created before this feature — the `'tier' in ...` guard
+    // avoids a rules error on those docs rather than silently granting
+    // access. Gates Scanner reads and the ADMIN BUYS chat room; see
+    // scanner_alerts and chat_rooms/messages below.
+    function isPremium() {
+      return isSignedIn() && ('tier' in userDoc().data) && userDoc().data.tier == 'premium';
+    }
+    function isPremiumOrAdmin() {
+      return isAdmin() || isPremium();
     }
 
     // -------------- users --------------
@@ -54,10 +70,16 @@ service cloud.firestore {
     // field, which would hide all pre-decay-job cards. The client filter
     // alone is sufficient for UX. A user using a raw Firestore client
     // could see decayed cards, but they're harmless and clearly labelled.
+    // Sep 2026: Scanner is a premium-only feature. Admins still see
+    // everything (including non-public docs, for moderation); premium
+    // customers see public docs, same visibility rule as before. Free-tier
+    // customers get permission-denied — the Flutter Scanner tab shows a
+    // PremiumGate upsell instead of ever issuing this query, so this is a
+    // backstop against a client that skips the gate, not the primary UX.
     match /scanner_alerts/{id} {
       allow read: if isSignedIn() && (
         isAdmin() ||
-        resource.data.visibility == 'public'
+        (isPremium() && resource.data.visibility == 'public')
       );
       allow write: if isAdmin();
     }
@@ -100,7 +122,13 @@ service cloud.firestore {
     // (The backend bumps `lastMessage` via the service account, so admin-write
     //  here is fine - service account bypasses rules.)
     match /chat_rooms/{roomId} {
-      allow read: if isSignedIn();
+      // Sep 2026: the admin_buys room's own metadata doc is premium-gated
+      // too, so a free-tier user's room list doesn't even resolve its
+      // lastMessage preview. Every other room stays open to any signed-in
+      // user, unchanged.
+      allow read: if isSignedIn() && (
+        roomId == 'admin_buys' ? isPremiumOrAdmin() : true
+      );
       allow write: if isAdmin();
 
       // ADMIN BUYS room: admin-only writes, everyone reads + reacts.
@@ -123,7 +151,12 @@ service cloud.firestore {
             .hasOnly(['reactions', 'updatedAt']);
         }
 
-        allow read: if isSignedIn();
+        // Sep 2026: ADMIN BUYS messages are premium-only, same gate as the
+        // room doc above. Every other room's messages stay open to any
+        // signed-in user.
+        allow read: if isSignedIn() && (
+          roomId == 'admin_buys' ? isPremiumOrAdmin() : true
+        );
 
         // ADMIN BUYS: only admin can create new messages.
         // All other rooms: any signed-in user can post their own message.

@@ -167,6 +167,11 @@ class _RoomTile extends ConsumerWidget {
     final muted = ref.watch(chatRoomMutedProvider(room.id));
     final unreadAsync = ref.watch(chatRoomUnreadCountProvider(room.id));
     final unread = unreadAsync.maybeWhen(data: (n) => n, orElse: () => 0);
+    // Sep 2026: ADMIN BUYS is premium-only. Still tappable — tapping opens
+    // ChatRoomScreen's own lock screen — but a badge here means the user
+    // isn't surprised by a locked room after tapping into it.
+    final bool locked =
+        room.id == 'admin_buys' && !ref.watch(hasPremiumAccessProvider);
     return Material(
       color: Colors.transparent,
       borderRadius: radius,
@@ -206,6 +211,12 @@ class _RoomTile extends ConsumerWidget {
                 bottom: 10,
                 right: 10,
                 child: _MutedChip(),
+              ),
+            if (locked)
+              const Positioned(
+                top: 10,
+                right: 10,
+                child: _PremiumLockChip(),
               ),
           ],
         ),
@@ -269,6 +280,35 @@ class _MutedChip extends StatelessWidget {
           Text('Muted',
               style: TextStyle(
                   color: AppColors.textTertiary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Small gold lock badge for the ADMIN BUYS tile when the current user
+/// isn't premium/admin. Mirrors _MutedChip's visual weight.
+class _PremiumLockChip extends StatelessWidget {
+  const _PremiumLockChip();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.6)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.lock_outline, size: 11, color: AppColors.gold),
+          SizedBox(width: 4),
+          Text('Premium',
+              style: TextStyle(
+                  color: AppColors.gold,
                   fontSize: 10,
                   fontWeight: FontWeight.w700)),
         ],
