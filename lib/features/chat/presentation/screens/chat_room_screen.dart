@@ -693,12 +693,12 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
                 : context.go(RoutePaths.chat),
           ),
         ),
-        body: PremiumGate(
+        body: const PremiumGate(
           featureName: 'ADMIN BUYS',
           description:
               'Live trade call-out screenshots from the desk are a '
               'premium subscriber benefit.',
-          child: const SizedBox.shrink(),
+          child: SizedBox.shrink(),
         ),
       );
     }
